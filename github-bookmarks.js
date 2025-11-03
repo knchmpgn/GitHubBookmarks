@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      4.2.2
+// @version      4.2.3
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -2161,11 +2161,12 @@
             if (newSvg) {
                 newSvg.style.width = '16px';
                 newSvg.style.height = '16px';
-                // Ensure proper spacing - match the native tabs
-                const svgParent = newSvg.parentElement;
-                if (svgParent) {
-                    svgParent.style.marginRight = '0px';
-                }
+                // Match native GitHub tab spacing - apply margin to the SVG itself
+                newSvg.style.marginRight = '6px';
+                // Adjust icon position and match native fill color
+                newSvg.style.position = 'relative';
+                newSvg.style.top = '1px';
+                newSvg.style.fill = 'var(--fgColor-muted)';
             }
         }
 
