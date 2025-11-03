@@ -1069,6 +1069,7 @@
                 height: 20px;
                 cursor: help;
                 color: var(--fgColor-muted, var(--color-fg-muted));
+                margin-right: 3px;
             }
 
             .bookmarks-sync-help:hover {
