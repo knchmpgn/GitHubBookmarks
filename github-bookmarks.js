@@ -1193,7 +1193,7 @@
 
             // Add separator after General
             const separator = document.createElement('div');
-            separator.style.height = '1px';
+            separator.style.height = '0.5px';
             separator.style.backgroundColor = 'var(--borderColor-muted, var(--color-border-muted))';
             separator.style.margin = '8px 0';
             listContainer.appendChild(separator);
