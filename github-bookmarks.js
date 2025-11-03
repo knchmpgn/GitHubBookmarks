@@ -2,7 +2,7 @@
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
 // @version      4.2.2
-// @description  A complete system to bookmark GitHub repositories with lists and automatic sync via Gist
+// @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
 // @match        https://github.com/*
@@ -1018,7 +1018,7 @@
             }
 
             .bookmarks-stats {
-                padding: 12px 24px;
+                padding: 16px 24px 16px 24px;
                 border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
                 font-size: 12px;
                 color: var(--fgColor-muted, var(--color-fg-muted));
