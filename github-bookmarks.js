@@ -510,8 +510,8 @@
 
             .SelectMenu-checkbox {
                 flex-shrink: 0;
-                width: 16px;
-                height: 16px;
+                width: 14px;
+                height: 14px;
                 margin: 0;
                 cursor: pointer;
                 border-radius: 3px;
