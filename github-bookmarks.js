@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      4.2.3
+// @version      4.2.4
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -393,7 +393,7 @@
                 padding: 0;
                 border-top-left-radius: 0;
                 border-bottom-left-radius: 0;
-                border-left: none;
+                border-left: 1px solid var(--borderColor-default, var(--color-border-default)) !important;
                 height: 100%;
             }
 
@@ -493,7 +493,6 @@
                 display: flex;
                 align-items: center;
                 width: 100%;
-                padding: 8px 16px;
                 overflow: hidden;
                 color: var(--fgColor-default, var(--color-fg-default));
                 text-align: left;
@@ -501,7 +500,12 @@
                 background-color: transparent;
                 border: 0;
                 font-size: 14px;
-                gap: 12px;
+                width: calc(100% - 16px);
+                padding: 6px 8px;
+                margin: 0 8px;
+                gap: 8px;
+                border-radius: 6px;
+                position: relative;
             }
 
             .SelectMenu-item:hover {
@@ -510,11 +514,41 @@
 
             .SelectMenu-checkbox {
                 flex-shrink: 0;
-                width: 14px;
-                height: 14px;
                 margin: 0;
                 cursor: pointer;
-                border-radius: 3px;
+                width: 16px;
+                height: 16px;
+                margin: 0;
+                cursor: pointer;
+                border-radius: 4px;
+                border: 1px solid var(--control-borderColor-rest, var(--color-border-default));
+                background-color: var(--bgColor-default, var(--color-canvas-default));
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                position: relative;
+                transition: background-color 0.1s ease, border-color 0.1s ease;
+            }
+
+            .SelectMenu-checkbox:hover {
+                border-color: var(--control-borderColor-emphasis, var(--color-accent-emphasis));
+            }
+
+            .SelectMenu-checkbox:checked {
+                background-color: #0969da;
+                border-color: #0969da;
+            }
+
+            .SelectMenu-checkbox:checked::after {
+                content: '';
+                position: absolute;
+                top: 2px;
+                left: 5px;
+                width: 4px;
+                height: 8px;
+                border: solid white;
+                border-width: 0 2px 2px 0;
+                transform: rotate(45deg);
             }
 
             .SelectMenu-item-text {
@@ -524,15 +558,39 @@
                 white-space: nowrap;
             }
 
+            .SelectMenu-item--add .SelectMenu-item-text {
+                flex: 0;
+                overflow: visible;
+                white-space: nowrap;
+            }
+
             .SelectMenu-footer {
                 display: flex;
                 flex: none;
-                padding: 8px 0;
-                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                padding: 0px 8px 8px 8px;
+                /* border-top: 1px solid var(--borderColor-muted, var(--color-border-muted)); */
+                border-top: 0px;
+                margin-top: 0px;
             }
 
             .SelectMenu-item--add {
-                font-weight: 400;
+                color: white;
+                background-color: #1F883D;
+                padding: 6px;
+                width: 100%;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                margin-bottom: 8px;
+                box-shadow: var(--shadow-resting-small, var(--color-btn-primary-shadow));
+                text-align: center;
+            }
+
+            .SelectMenu-item--add:hover {
+                background-color: #1F883D;
+                transition-duration: var(--duration-fast);
             }
 
             .SelectMenu-plus-icon {
@@ -540,7 +598,15 @@
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: white;
+                width: 16px;
+                height: 16px;
+            }
+
+            .SelectMenu-plus-icon svg {
+                width: 16px;
+                height: 16px;
+                display: block;
             }
 
             /* Modal Overlay */
@@ -1129,6 +1195,13 @@
                     margin: 4px 0;
                 }
             }
+
+            @media (prefers-color-scheme: dark) {
+                .SelectMenu-checkbox:checked {
+                    background-color: #1f6feb;
+                    border-color: #1f6feb;
+                }
+}
         `;
         document.head.appendChild(style);
     }
@@ -1229,13 +1302,13 @@
 
             modal.appendChild(listContainer);
 
-            const footer = document.createElement('div');
-            footer.className = 'SelectMenu-footer';
-            const addButton = document.createElement('button');
-            addButton.className = 'SelectMenu-item SelectMenu-item--add';
-            addButton.innerHTML = `
-                <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
-                <span class="SelectMenu-item-text">Create list</span>
+                const footer = document.createElement('div');
+                footer.className = 'SelectMenu-footer';
+                const addButton = document.createElement('button');
+                addButton.className = 'SelectMenu-item SelectMenu-item--add';
+                addButton.innerHTML = `
+                    <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
+                    <span class="SelectMenu-item-text">Create list</span>
             `;
             addButton.addEventListener('click', (e) => {
                 e.preventDefault();
