@@ -562,6 +562,8 @@
                 flex: 0;
                 overflow: visible;
                 white-space: nowrap;
+                position: relative;
+                top: -1px;
             }
 
             .SelectMenu-footer {
