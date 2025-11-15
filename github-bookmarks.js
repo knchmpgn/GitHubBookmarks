@@ -522,6 +522,7 @@
                 cursor: pointer;
                 border-radius: 4px;
                 border: 1px solid var(--control-borderColor-rest, var(--color-border-default));
+                border-color: var(--control-borderColor-emphasis, var(--color-accent-emphasis));
                 background-color: var(--bgColor-default, var(--color-canvas-default));
                 appearance: none;
                 -webkit-appearance: none;
