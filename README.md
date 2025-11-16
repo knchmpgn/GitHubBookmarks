@@ -12,3 +12,5 @@
 
 <img width="1398" height="139" alt="screenshot_102525190132" src="https://github.com/user-attachments/assets/cb373873-4c68-498c-bb9f-efbd93fd3ed1" />
 <img width="1398" height="928" alt="screenshot_102525190114" src="https://github.com/user-attachments/assets/e9edb731-3361-4701-920c-e1e2a02d7165" />
+
+<a href="https://www.buymeacoffee.com/knchmpgn" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
