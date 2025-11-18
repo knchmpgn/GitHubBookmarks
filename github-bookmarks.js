@@ -639,7 +639,7 @@
                 box-shadow: var(--shadow-floating-xlarge);
                 width: 90%;
                 max-width: 1000px;
-                max-height: 85vh;
+                max-height: 80vh;
                 display: flex;
                 flex-direction: column;
                 animation: slideUp 0.2s ease-out;
@@ -695,10 +695,7 @@
             .bookmarks-filter {
                 display: flex;
                 gap: 8px;
-                padding: 0px 24px 0px 24px;
-                margin-top: 24px;
-                margin-bottom: 24px;
-                overflow-x: auto;
+                padding: 24px 24px 24px 24px;
                 flex-wrap: wrap;
                 align-items: center;
             }
@@ -707,7 +704,6 @@
                 width: 1px;
                 height: 20px;
                 background-color: var(--borderColor-muted, var(--color-border-muted));
-                margin: 0 8px;
             }
 
             .bookmarks-manage-btn {
