@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         GitHub Bookmarks
+// @name         Github Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      4.2.4
-// @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
-// @icon         https://github.githubassets.com/pinned-octocat.svg
+// @version      4.0
+// @description  Bookmark GitHub repositories with lists, sync via Gist, drag-to-reorder, and compact modal view
+// @icon        https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
 // @match        https://github.com/*
 // @grant        none
@@ -26,7 +26,6 @@
     };
 
     const DEFAULT_LIST = 'General';
-    const SYNC_HELP_URL = 'https://github.com/settings/tokens/new';
 
     // SVG Icons
     const ICONS = {
@@ -36,11 +35,7 @@
         close: `<svg class="octicon octicon-x" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path></svg>`,
         plus: `<svg class="octicon octicon-plus" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg>`,
         trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
-        questionMark: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085h.001a.749.749 0 1 1-1.342-.67c.169-.339.436-.701.849-.977C6.845 4.16 7.369 4 8 4a2.756 2.756 0 0 1 1.638.525c.503.377.862.965.862 1.725 0 .448-.115.83-.329 1.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6.24 6.24 0 0 0-.26.16.952.952 0 0 0-.276.245.75.75 0 0 1-1.248-.832c.184-.264.42-.489.692-.661.103-.067.207-.132.313-.195l.007-.004c.1-.061.182-.11.258-.161a.969.969 0 0 0 .277-.245C8.96 6.514 9 6.427 9 6.25c0-.412-.155-.826-.57-1.12A1.256 1.256 0 0 0 8 4.75c-.361 0-.67.1-.894.27-.228.173-.4.412-.534.714v.001ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
-        pencil: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path></svg>`,
-        gear: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path fill="currentColor" d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path></svg>`,
-        gripVertical: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-4 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5-9a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
-        lock: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z"></path></svg>`
+        questionMark: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085h.001a.749.749 0 1 1-1.342-.67c.169-.339.436-.701.849-.977C6.845 4.16 7.369 4 8 4a2.756 2.756 0 0 1 1.638.525c.503.377.862.965.862 1.725 0 .448-.115.83-.329 1.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6.24 6.24 0 0 0-.26.16.952.952 0 0 0-.276.245.75.75 0 0 1-1.248-.832c.184-.264.42-.489.692-.661.103-.067.207-.132.313-.195l.007-.004c.1-.061.182-.11.258-.161a.969.969 0 0 0 .277-.245C8.96 6.514 9 6.427 9 6.25c0-.412-.155-.826-.57-1.12A1.256 1.256 0 0 0 8 4.75c-.361 0-.67.1-.894.27-.228.173-.4.412-.534.714v.001ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`
     };
 
     let modalOpen = false;
@@ -51,72 +46,39 @@
 
     const Storage = {
         getBookmarks() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '{}');
-            } catch (error) {
-                console.error('Failed to parse bookmarks:', error);
-                return {};
-            }
+            return JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKMARKS) || '{}');
         },
 
         getLists() {
-            try {
-                const lists = JSON.parse(localStorage.getItem(STORAGE_KEYS.LISTS) || `["${DEFAULT_LIST}"]`);
-                const order = this.getListOrder();
+            const lists = JSON.parse(localStorage.getItem(STORAGE_KEYS.LISTS) || `["${DEFAULT_LIST}"]`);
+            const order = this.getListOrder();
 
-                const generalList = lists.find(l => l === DEFAULT_LIST);
-                const otherLists = lists.filter(l => l !== DEFAULT_LIST).sort((a, b) => {
-                    const indexA = order.indexOf(a);
-                    const indexB = order.indexOf(b);
-                    if (indexA === -1 && indexB === -1) return 0;
-                    if (indexA === -1) return 1;
-                    if (indexB === -1) return -1;
-                    return indexA - indexB;
-                });
-
-                return generalList ? [generalList, ...otherLists] : otherLists;
-            } catch (error) {
-                console.error('Failed to parse lists:', error);
-                return [DEFAULT_LIST];
-            }
+            // Sort by custom order
+            return lists.sort((a, b) => {
+                const indexA = order.indexOf(a);
+                const indexB = order.indexOf(b);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
         },
 
         getListOrder() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_ORDER) || '[]');
-            } catch (error) {
-                console.error('Failed to parse list order:', error);
-                return [];
-            }
+            return JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_ORDER) || '[]');
         },
 
         saveListOrder(order) {
-            try {
-                localStorage.setItem(STORAGE_KEYS.LIST_ORDER, JSON.stringify(order));
-            } catch (error) {
-                console.error('Failed to save list order:', error);
-            }
+            localStorage.setItem(STORAGE_KEYS.LIST_ORDER, JSON.stringify(order));
         },
 
-        saveBookmarks(bookmarks, autoSync = true) {
-            try {
-                localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(bookmarks));
-                this.dispatchUpdate();
-
-                if (autoSync && this.getSyncToken() && this.getGistId()) {
-                    this.syncToGist(true);
-                }
-            } catch (error) {
-                console.error('Failed to save bookmarks:', error);
-            }
+        saveBookmarks(bookmarks) {
+            localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(bookmarks));
+            this.dispatchUpdate();
         },
 
         saveLists(lists) {
-            try {
-                localStorage.setItem(STORAGE_KEYS.LISTS, JSON.stringify(lists));
-            } catch (error) {
-                console.error('Failed to save lists:', error);
-            }
+            localStorage.setItem(STORAGE_KEYS.LISTS, JSON.stringify(lists));
         },
 
         getTotalCount() {
@@ -159,11 +121,12 @@
         },
 
         addList(listName) {
-            const lists = this.getLists();
+            const lists = JSON.parse(localStorage.getItem(STORAGE_KEYS.LISTS) || `["${DEFAULT_LIST}"]`);
             if (!lists.includes(listName)) {
                 lists.push(listName);
                 this.saveLists(lists);
 
+                // Add to order
                 const order = this.getListOrder();
                 if (!order.includes(listName)) {
                     order.push(listName);
@@ -174,63 +137,11 @@
             return false;
         },
 
-        renameList(oldName, newName) {
-            if (oldName === DEFAULT_LIST) {
-                alert('Cannot rename the default list.');
-                return false;
-            }
-
-            const lists = this.getLists();
-            if (!lists.includes(oldName)) return false;
-            if (lists.includes(newName)) {
-                alert('A list with that name already exists.');
-                return false;
-            }
-
-            const newLists = lists.map(l => l === oldName ? newName : l);
-            this.saveLists(newLists);
-
-            const bookmarks = this.getBookmarks();
-            if (bookmarks[oldName]) {
-                bookmarks[newName] = bookmarks[oldName];
-                delete bookmarks[oldName];
-                this.saveBookmarks(bookmarks);
-            }
-
-            const order = this.getListOrder();
-            const newOrder = order.map(l => l === oldName ? newName : l);
-            this.saveListOrder(newOrder);
-
-            return true;
-        },
-
-        deleteList(listName) {
-            if (listName === DEFAULT_LIST) {
-                alert('Cannot delete the default list.');
-                return false;
-            }
-
-            const lists = this.getLists();
-            if (!lists.includes(listName)) return false;
-
-            this.saveLists(lists.filter(l => l !== listName));
-
-            const bookmarks = this.getBookmarks();
-            if (bookmarks[listName]) {
-                delete bookmarks[listName];
-                this.saveBookmarks(bookmarks);
-            }
-
-            const order = this.getListOrder();
-            this.saveListOrder(order.filter(l => l !== listName));
-
-            return true;
-        },
-
         dispatchUpdate() {
-            window.dispatchEvent(new CustomEvent('ghBookmarksUpdated'));
+            window.dispatchEvent(new Event('ghBookmarksUpdated'));
         },
 
+        // Sync functionality
         getSyncToken() {
             return localStorage.getItem(STORAGE_KEYS.SYNC_TOKEN) || '';
         },
@@ -247,30 +158,81 @@
             localStorage.setItem(STORAGE_KEYS.SYNC_GIST_ID, id);
         },
 
-        async syncToGist(silent = false) {
+        async syncToGist() {
             const token = this.getSyncToken();
             if (!token) {
-                if (!silent) alert('Please configure your GitHub token first (click "Configure")');
-                return { success: false, error: 'No token configured' };
+                alert('Please configure your GitHub token first (click "Configure Sync")');
+                return false;
             }
 
             const data = {
                 bookmarks: this.getBookmarks(),
-                lists: this.getLists(),
+                lists: JSON.parse(localStorage.getItem(STORAGE_KEYS.LISTS) || `["${DEFAULT_LIST}"]`),
                 listOrder: this.getListOrder(),
                 lastSync: new Date().toISOString()
             };
 
-            const gistId = this.getGistId();
-            const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
+            let gistId = this.getGistId();
+
+            // First, search for existing bookmark gists to prevent duplicates
+            try {
+                const searchResponse = await fetch('https://api.github.com/gists', {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (searchResponse.ok) {
+                    const gists = await searchResponse.json();
+                    const bookmarkGists = gists.filter(g =>
+                        g.description === 'GitHub Bookmarks Backup' &&
+                        g.files['github-bookmarks.json']
+                    );
+
+                    if (bookmarkGists.length > 0) {
+                        // Use the first one found, delete any extras
+                        const primaryGist = bookmarkGists[0];
+                        gistId = primaryGist.id;
+                        this.setGistId(gistId);
+                        console.log('Using existing gist:', gistId);
+
+                        // Delete duplicate gists
+                        if (bookmarkGists.length > 1) {
+                            console.log(`Found ${bookmarkGists.length - 1} duplicate gist(s), cleaning up...`);
+                            for (let i = 1; i < bookmarkGists.length; i++) {
+                                try {
+                                    await fetch(`https://api.github.com/gists/${bookmarkGists[i].id}`, {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'Authorization': `token ${token}`,
+                                            'Accept': 'application/vnd.github.v3+json'
+                                        }
+                                    });
+                                    console.log('Deleted duplicate gist:', bookmarkGists[i].id);
+                                } catch (e) {
+                                    console.warn('Failed to delete duplicate:', e);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not search for existing gists:', error);
+            }
+
+            const url = gistId
+                ? `https://api.github.com/gists/${gistId}`
+                : 'https://api.github.com/gists';
+
+            const method = gistId ? 'PATCH' : 'POST';
 
             try {
                 const response = await fetch(url, {
-                    method: gistId ? 'PATCH' : 'POST',
+                    method,
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28',
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -286,65 +248,99 @@
 
                 if (!response.ok) {
                     const error = await response.json();
-                    throw new Error(error.message || `HTTP ${response.status}`);
+                    console.error('Sync error:', error);
+                    throw new Error(error.message || 'Failed to sync');
                 }
 
                 const result = await response.json();
                 this.setGistId(result.id);
+                console.log('Backup successful, Gist ID:', result.id);
                 return { success: true, time: new Date().toISOString() };
             } catch (error) {
                 console.error('Sync failed:', error);
-                if (!silent) {
-                    alert(`Sync failed: ${error.message}\n\nMake sure your token has the 'gist' scope enabled.`);
-                }
                 return { success: false, error: error.message };
             }
         },
 
         async syncFromGist() {
-            const token = this.getSyncToken();
-            const gistId = this.getGistId();
+                const token = this.getSyncToken();
 
-            if (!token || !gistId) {
-                alert('No sync configuration found. Please backup first to create a sync gist.');
-                return { success: false, error: 'No configuration' };
-            }
+                if (!token) {
+                    alert('Please configure your GitHub token first (click "Configure Sync")');
+                    return false;
+                }
 
-            try {
-                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28'
+                let gistId = this.getGistId();
+
+                // If no gist ID stored, try to find it by searching user's gists
+                if (!gistId) {
+                    try {
+                        const searchResponse = await fetch('https://api.github.com/gists', {
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+
+                        if (!searchResponse.ok) {
+                            throw new Error('Failed to search for gists');
+                        }
+
+                        const gists = await searchResponse.json();
+                        const bookmarkGist = gists.find(g =>
+                            g.description === 'GitHub Bookmarks Backup' &&
+                            g.files['github-bookmarks.json']
+                        );
+
+                        if (bookmarkGist) {
+                            gistId = bookmarkGist.id;
+                            this.setGistId(gistId);
+                            console.log('Found existing bookmark gist:', gistId);
+                        } else {
+                            alert('No backup found. Please create a backup first.');
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error('Search failed:', error);
+                        alert('Failed to search for backups: ' + error.message);
+                        return false;
                     }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
                 }
 
-                const gist = await response.json();
-                const content = gist.files['github-bookmarks.json']?.content;
+                // Now fetch the gist
+                try {
+                    const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
 
-                if (!content) {
-                    throw new Error('Bookmark data not found in gist');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch gist');
+                    }
+
+                    const gist = await response.json();
+                    const content = gist.files['github-bookmarks.json']?.content;
+
+                    if (!content) {
+                        throw new Error('Bookmark data not found in gist');
+                    }
+
+                    const data = JSON.parse(content);
+
+                    if (confirm('This will replace your current bookmarks with the synced version. Continue?')) {
+                        this.saveBookmarks(data.bookmarks);
+                        this.saveLists(data.lists);
+                        if (data.listOrder) this.saveListOrder(data.listOrder);
+                        return { success: true, time: data.lastSync };
+                    }
+                    return { success: false };
+                } catch (error) {
+                    console.error('Restore failed:', error);
+                    return { success: false, error: error.message };
                 }
-
-                const data = JSON.parse(content);
-
-                if (confirm('This will replace your current bookmarks with the synced version. Continue?')) {
-                    this.saveBookmarks(data.bookmarks, false);
-                    this.saveLists(data.lists);
-                    if (data.listOrder) this.saveListOrder(data.listOrder);
-                    return { success: true, time: data.lastSync };
-                }
-                return { success: false };
-            } catch (error) {
-                console.error('Restore failed:', error);
-                alert(`Restore failed: ${error.message}`);
-                return { success: false, error: error.message };
             }
-        }
     };
 
     // ============================================================================
@@ -357,7 +353,7 @@
             if (pathParts.length >= 2) {
                 return {
                     repo: `${pathParts[0]}/${pathParts[1]}`,
-                    repoUrl: `${window.location.origin}/${pathParts.slice(0, 2).join('/')}`
+                    repoUrl: window.location.origin + '/' + pathParts.slice(0, 2).join('/')
                 };
             }
             return null;
@@ -379,28 +375,49 @@
         const style = document.createElement('style');
         style.id = 'gh-bookmarks-styles';
         style.textContent = `
-            /* Bookmark Button on Repo Pages */
+            /* Bookmark Button on Repo Pages - Custom Classes */
             .gh-bookmark-button-group {
                 display: inline-flex;
                 vertical-align: middle;
             }
 
+            .gh-bookmark-btn {
+                /* Only for SVG coloring, not for button shape or background */
+            }
+            .gh-bookmark-dropdown {
+                /* Only for dropdown logic, not for button shape or background */
+            }
+            /* Custom dropdown button for bookmark only */
             .gh-bookmark-dropdown-btn {
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 width: 32px;
-                padding: 0;
+                padding-left: 0;
+                padding-right: 0;
                 border-top-left-radius: 0;
                 border-bottom-left-radius: 0;
-                border-left: 1px solid var(--borderColor-default, var(--color-border-default)) !important;
+                border-left: none;
                 height: 100%;
+                min-height: unset;
+                max-height: unset;
+            }
+
+            .gh-bookmark-icon {
+                display: inline-block;
+                vertical-align: text-bottom;
+                margin-right: 4px;
             }
 
             .gh-bookmark-icon svg {
                 display: inline-block;
                 overflow: visible;
                 vertical-align: text-bottom;
+            }
+
+            .gh-bookmark-text {
+                display: inline-block;
+                font-weight: 500;
             }
 
             .gh-bookmark-counter {
@@ -411,6 +428,7 @@
                 line-height: 18px;
                 color: var(--fgColor-default, var(--color-fg-default));
                 background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                border: 1px solid transparent;
                 border-radius: 2em;
                 margin-left: 4px;
             }
@@ -427,6 +445,10 @@
 
             .gh-bookmark-details summary::-webkit-details-marker {
                 display: none;
+            }
+
+            .gh-bookmark-details[open] .gh-bookmark-dropdown {
+                border-color: var(--borderColor-default, var,--color-border-default);
             }
 
             /* SelectMenu Dropdown */
@@ -446,10 +468,10 @@
                 flex-direction: column;
                 max-height: 480px;
                 overflow: hidden;
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                background-color: var(--overlay-bgColor, var,--color-canvas-overlay);
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 12px;
-                box-shadow: var(--shadow-floating-large, var(--color-shadow-large));
+                box-shadow: var(--shadow-floating-large, var,--color-shadow-large);
             }
 
             .SelectMenu-header {
@@ -458,27 +480,30 @@
                 align-items: center;
                 justify-content: space-between;
                 padding: 16px;
-                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                border-bottom: 1px solid var(--borderColor-muted, var,--color-border-muted);
             }
 
             .SelectMenu-title {
                 flex: 1;
                 font-size: 14px;
                 font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var,--color-fg-default);
             }
 
             .SelectMenu-closeButton {
                 padding: 4px;
                 background: transparent;
                 border: 0;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
                 cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 border-radius: 6px;
             }
 
             .SelectMenu-closeButton:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
             .SelectMenu-list {
@@ -493,63 +518,29 @@
                 display: flex;
                 align-items: center;
                 width: 100%;
+                padding: 8px 16px;
                 overflow: hidden;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var,--color-fg-default);
                 text-align: left;
                 cursor: pointer;
                 background-color: transparent;
                 border: 0;
                 font-size: 14px;
-                width: calc(100% - 16px);
-                padding: 6px 8px;
-                margin: 0 8px;
-                gap: 8px;
-                border-radius: 6px;
-                position: relative;
+                font-family: inherit;
+                gap: 12px;
             }
 
             .SelectMenu-item:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
             .SelectMenu-checkbox {
                 flex-shrink: 0;
-                margin: 0;
-                cursor: pointer;
                 width: 16px;
                 height: 16px;
                 margin: 0;
                 cursor: pointer;
-                border-radius: 4px;
-                border: 1px solid var(--control-borderColor-rest, var(--color-border-default));
-                border-color: var(--control-borderColor-emphasis, var(--color-accent-emphasis));
-                background-color: var(--bgColor-default, var(--color-canvas-default));
-                appearance: none;
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                position: relative;
-                transition: background-color 0.1s ease, border-color 0.1s ease;
-            }
-
-            .SelectMenu-checkbox:hover {
-                border-color: var(--control-borderColor-emphasis, var(--color-accent-emphasis));
-            }
-
-            .SelectMenu-checkbox:checked {
-                background-color: #0969da;
-                border-color: #0969da;
-            }
-
-            .SelectMenu-checkbox:checked::after {
-                content: '';
-                position: absolute;
-                top: 2px;
-                left: 5px;
-                width: 4px;
-                height: 8px;
-                border: solid white;
-                border-width: 0 2px 2px 0;
-                transform: rotate(45deg);
+                border-radius: 3px;
             }
 
             .SelectMenu-item-text {
@@ -559,41 +550,15 @@
                 white-space: nowrap;
             }
 
-            .SelectMenu-item--add .SelectMenu-item-text {
-                flex: 0;
-                overflow: visible;
-                white-space: nowrap;
-                position: relative;
-                top: -1px;
-            }
-
             .SelectMenu-footer {
                 display: flex;
                 flex: none;
-                padding: 0px 8px 8px 8px;
-                /* border-top: 1px solid var(--borderColor-muted, var(--color-border-muted)); */
-                border-top: 0px;
-                margin-top: 0px;
+                padding: 8px 0;
+                border-top: 1px solid var(--borderColor-muted, var,--color-border-muted);
             }
 
             .SelectMenu-item--add {
-                color: white;
-                background-color: #1F883D;
-                padding: 6px;
-                width: 100%;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-                margin-bottom: 8px;
-                box-shadow: var(--shadow-resting-small, var(--color-btn-primary-shadow));
-                text-align: center;
-            }
-
-            .SelectMenu-item--add:hover {
-                background-color: #1F883D;
-                transition-duration: var(--duration-fast);
+                font-weight: 400;
             }
 
             .SelectMenu-plus-icon {
@@ -601,15 +566,35 @@
                 align-items: center;
                 justify-content: center;
                 flex-shrink: 0;
-                color: white;
-                width: 16px;
-                height: 16px;
+                color: var(--fgColor-muted, var,--color-fg-muted);
             }
 
             .SelectMenu-plus-icon svg {
-                width: 16px;
-                height: 16px;
-                display: block;
+                fill: currentColor;
+            }
+
+            /* Fix for details marker */
+            .gh-bookmark-details summary {
+                list-style: none;
+            }
+
+            .gh-bookmark-details summary::-webkit-details-marker {
+                display: none;
+            }
+
+            /* Profile Menu Item */
+            .gh-bookmarks-item {
+                display: block !important;
+                width: 100%;
+                text-decoration: none !important;
+            }
+
+            .gh-bookmarks-item .Counter {
+                margin-left: 0 !important;
+            }
+
+            .gh-bookmarks-item > span {
+                display: inline !important;
             }
 
             /* Modal Overlay */
@@ -633,13 +618,13 @@
             }
 
             .bookmarks-modal {
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                background-color: var(--overlay-bgColor, var,--color-canvas-overlay);
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 12px;
-                box-shadow: var(--shadow-floating-xlarge);
+                box-shadow: var(--shadow-floating-xlarge, 0 12px 28px rgba(149, 157, 165, 0.3));
                 width: 90%;
                 max-width: 1000px;
-                max-height: 80vh;
+                max-height: 85vh;
                 display: flex;
                 flex-direction: column;
                 animation: slideUp 0.2s ease-out;
@@ -661,7 +646,7 @@
                 align-items: center;
                 justify-content: space-between;
                 padding: 16px 24px;
-                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                border-bottom: 1px solid var(--borderColor-muted, var,--color-border-muted);
             }
 
             .bookmarks-modal-title {
@@ -670,7 +655,7 @@
                 gap: 8px;
                 font-size: 20px;
                 font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var,--color-fg-default);
                 margin: 0;
             }
 
@@ -684,87 +669,64 @@
                 background: transparent;
                 border: 0;
                 border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
                 cursor: pointer;
             }
 
             .bookmarks-modal-close:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
             .bookmarks-filter {
                 display: flex;
                 gap: 8px;
-                padding: 24px 24px 24px 24px;
-                flex-wrap: wrap;
-                align-items: center;
+                padding: 16px 24px;
+                border-bottom: 1px solid var(--borderColor-muted, var,--color-border-muted);
+                overflow-x: auto;
             }
 
-            .bookmarks-filter-separator {
-                width: 1px;
-                height: 20px;
-                background-color: var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .bookmarks-manage-btn {
-                padding: 5px 12px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
-                border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                white-space: nowrap;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-                flex-shrink: 0;
-                height: 32px;
-            }
-
-            .bookmarks-manage-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
+            /* Small hint shown under the list-name buttons explaining drag reorder */
+            .bookmarks-filter-hint {
+                font-size: 12px;
+                color: var(--fgColor-muted, var,--color-fg-muted);
+                margin: 6px 24px 0 24px;
             }
 
             .bookmarks-filter-btn {
                 padding: 5px 16px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
+                border: 1px solid var(--button-default-borderColor-rest, var,--color-btn-border);
                 border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
+                background-color: var(--button-default-bgColor-rest, var,--color-btn-bg);
+                color: var(--button-default-fgColor-rest, var,--color-btn-text);
                 font-size: 14px;
                 font-weight: 500;
                 cursor: pointer;
                 white-space: nowrap;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                height: 32px;
             }
 
             .bookmarks-filter-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
+                background-color: var(--button-default-bgColor-hover, var,--color-btn-hover-bg);
+                border-color: var(--button-default-borderColor-hover, var,--color-btn-hover-border);
             }
 
             .bookmarks-filter-btn.active {
-                background-color: var(--button-primary-bgColor-rest, var(--color-btn-primary-bg));
-                border-color: var(--button-primary-bgColor-rest, var(--color-btn-primary-bg));
-                color: var(--button-primary-fgColor-rest, var(--color-btn-primary-text));
+                background-color: var(--button-primary-bgColor-rest, var,--color-btn-primary-bg);
+                border-color: var(--button-primary-bgColor-rest, var,--color-btn-primary-bg);
+                color: var(--button-primary-fgColor-rest, var,--color-btn-primary-text);
             }
 
             .bookmarks-filter-btn.dragging {
                 opacity: 0.5;
             }
 
+            .bookmarks-filter-btn.drag-over {
+                border-left: 2px solid var(--button-primary-bgColor-rest, var,--color-btn-primary-bg);
+            }
+
             .bookmarks-modal-content {
                 flex: 1;
                 overflow-y: auto;
-                padding: 0px 24px 0px 24px;
-                margin-bottom: 24px;
+                padding: 24px;
             }
 
             .bookmarks-list {
@@ -775,53 +737,50 @@
 
             .bookmarks-empty {
                 text-align: center;
-                padding: 24px 48px 24px 72px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                padding: 48px 24px;
+                color: var(--fgColor-muted, var,--color-fg-muted);
             }
 
             .bookmarks-empty-icon {
-                display: inline-block;
-                margin-bottom: 24px;
-                opacity: 0.5;
-                scale: 3;
+                margin-bottom: 16px;
+                opacity: 0.4;
             }
 
             .bookmarks-empty-title {
                 font-size: 24px;
                 font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
-                margin-bottom: 3px;
+                margin-bottom: 8px;
+                color: var(--fgColor-default, var,--color-fg-default);
+            }
+
+            .bookmarks-empty-text {
+                font-size: 14px;
             }
 
             .bookmark-item {
                 display: flex;
-                align-items: flex-start;
+                align-items: flex-start; /* Change from center to flex-start */
                 gap: 12px;
                 padding: 12px 16px;
-                background-color: var(--bgColor-default, var(--color-canvas-default));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                background-color: var(--bgColor-default, var,--color-canvas-default);
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 6px;
                 cursor: pointer;
             }
 
             .bookmark-item:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
             .bookmark-icon-container {
                 flex-shrink: 0;
-                width: 20px;
-                height: 20px;
+                width: 16px;
+                height: 16px;
                 display: flex;
-                align-items: flex-start;
+                align-items: center;
                 justify-content: center;
                 color: var(--fgColor-muted, var(--color-fg-muted));
-                margin-top: 5px;
-            }
-
-            .bookmark-icon-container svg {
-                width: 20px;
-                height: 20px;
+                margin-top: 5px; /* Changed from 2px to 5px */
             }
 
             .bookmark-info {
@@ -841,7 +800,7 @@
             }
 
             .bookmark-title a {
-                color: var(--fgColor-accent, var(--color-accent-fg));
+                color: var(--fgColor-accent, var,--color-accent-fg);
                 text-decoration: none;
                 font-weight: 600;
             }
@@ -852,7 +811,7 @@
 
             .bookmark-description {
                 font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
                 line-height: 1.5;
             }
 
@@ -862,6 +821,7 @@
                 align-items: center;
                 gap: 4px;
                 flex-shrink: 0;
+                margin-top: 0;
             }
 
             .bookmark-list-tag {
@@ -875,29 +835,32 @@
                 line-height: 18px;
                 white-space: nowrap;
                 border-radius: 2em;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                color: var(--fgColor-default, var(--color-fg-default));
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
+                color: var(--fgColor-default, var,--color-fg-default);
                 cursor: pointer;
+                margin-bottom: 0;
             }
 
             .bookmark-list-tag:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
-            .bookmark-list-tag.default-list {
-                background-color: var(--bgColor-accent-muted, var(--color-accent-subtle));
-                border-color: var(--borderColor-accent-muted, var(--color-accent-muted));
-                color: var(--fgColor-accent, var(--color-accent-fg));
-                font-weight: 600;
+            .bookmark-actions {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 4px;
+                flex-shrink: 0;
+                margin-top: 0;
             }
-
             .bookmark-right-group {
                 display: flex;
                 flex-direction: row;
                 align-items: center;
-                gap: 12px;
+                justify-content: flex-end;
+                gap: 12px; /* Increased spacing between list name and trash button */
                 min-width: 90px;
-                margin-top: 2px;
+                margin-top: 2px; /* lowered by 2px */
             }
 
             .bookmark-action-btn {
@@ -908,14 +871,25 @@
                 height: 28px;
                 padding: 0;
                 background: transparent;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
                 cursor: pointer;
+                vertical-align: middle;
             }
 
             .bookmark-action-btn:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
+            }
+
+            .bookmark-action-btn.danger:hover {
+                background-color: var(--button-danger-bgColor-hover, var(--color-btn-danger-hover-bg));
+                border-color: var(--button-danger-bgColor-hover, var(--color-btn-danger-hover-bg));
+                color: var(--button-danger-fgColor-rest, var(--color-btn-danger-text));
+            }
+
+            .bookmark-action-btn.danger:hover svg {
+                fill: white;
             }
 
             /* List Management Dropdown */
@@ -924,8 +898,8 @@
                 z-index: 10000;
                 margin-top: 4px;
                 width: 200px;
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                background-color: var(--overlay-bgColor, var,--color-canvas-overlay);
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 6px;
                 box-shadow: var(--shadow-floating-medium);
                 padding: 8px 0;
@@ -938,7 +912,7 @@
                 padding: 6px 16px;
                 background: transparent;
                 border: 0;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var,--color-fg-default);
                 font-size: 14px;
                 text-align: left;
                 cursor: pointer;
@@ -946,147 +920,18 @@
             }
 
             .bookmark-list-dropdown-item:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var,--color-neutral-muted);
             }
 
-            /* List Management Modal */
-            .list-management-modal {
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 12px;
-                box-shadow: var(--shadow-floating-xlarge);
-                width: 90%;
-                max-width: 500px;
-                max-height: 600px;
-                display: flex;
-                flex-direction: column;
-            }
-
-            .list-management-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 16px 24px;
-                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .list-management-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
+            .bookmark-list-dropdown-item input[type="checkbox"] {
                 margin: 0;
             }
 
-            .list-management-content {
-                flex: 1;
-                overflow-y: auto;
-                padding: 24px 24px 12px 24px;
-            }
-
-            .list-management-item {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 12px;
-                background-color: var(--bgColor-default, var(--color-canvas-default));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                margin-bottom: 12px;
-            }
-
-            .list-management-item.default-list {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                opacity: 0.7;
-            }
-
-            .list-management-item-name {
-                flex: 1;
-                font-size: 14px;
-                font-weight: 500;
-                color: var(--fgColor-default, var(--color-fg-default));
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .list-management-item-count {
-                font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                padding: 2px 8px;
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                border-radius: 12px;
-            }
-
-            .list-management-item-actions {
-                display: flex;
-                gap: 4px;
-            }
-
-            .list-management-action-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 28px;
-                height: 28px;
-                padding: 0;
-                background: transparent;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                cursor: pointer;
-            }
-
-            .list-management-action-btn:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-            }
-
-            .list-management-action-btn.danger:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-            }
-
-            .list-management-action-btn.danger:hover svg {
-                fill: currentColor;
-            }
-
-            .list-management-action-btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-            .list-management-footer {
-                display: flex;
-                padding: 24px;
-                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .list-management-create-btn {
-                width: 100%;
-                padding: 8px 16px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
-                border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-            }
-
-            .list-management-create-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
-            }
-
             .bookmarks-stats {
-                padding: 16px 24px 16px 24px;
-                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                padding: 12px 24px;
+                border-top: 1px solid var(--borderColor-muted, var,--color-border-muted);
                 font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -1099,20 +944,18 @@
             }
 
             .bookmarks-sync-btn {
-                padding: 5px 16px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
+                padding: 4px 12px;
+                font-size: 12px;
+                border: 1px solid var(--borderColor-default, var,--color-border-default);
                 border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-                font-size: 14px;
-                font-weight: 500;
+                background-color: var(--button-default-bgColor-rest, var,--color-btn-bg);
+                color: var(--button-default-fgColor-rest, var,--color-btn-text);
                 cursor: pointer;
-                white-space: nowrap;
+                font-weight: 500;
             }
 
             .bookmarks-sync-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
+                background-color: var(--button-default-bgColor-hover, var,--color-btn-hover-bg);
             }
 
             .bookmarks-sync-btn:disabled {
@@ -1120,9 +963,19 @@
                 cursor: not-allowed;
             }
 
+            .bookmarks-sync-btn.primary {
+                background-color: var(--button-primary-bgColor-rest, var,--color-btn-primary-bg);
+                border-color: var(--button-primary-bgColor-rest, var,--color-btn-primary-bg);
+                color: var(--button-primary-fgColor-rest, var,--color-btn-primary-text);
+            }
+
+            .bookmarks-sync-btn.primary:hover {
+                background-color: var(--button-primary-bgColor-hover, var,--color-btn-primary-hover-bg);
+            }
+
             .bookmarks-sync-status {
                 font-size: 11px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
+                color: var(--fgColor-muted, var,--color-fg-muted);
             }
 
             .bookmarks-sync-help {
@@ -1134,11 +987,10 @@
                 height: 20px;
                 cursor: help;
                 color: var(--fgColor-muted, var(--color-fg-muted));
-                margin-right: 3px;
             }
 
             .bookmarks-sync-help:hover {
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var (--color-fg-default));
             }
 
             .bookmarks-sync-help-tooltip {
@@ -1147,13 +999,13 @@
                 right: 0;
                 width: 320px;
                 padding: 12px;
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                background-color: var(--overlay-bgColor, var (--color-canvas-overlay));
+                border: 1px solid var(--borderColor-default, var (--color-border-default));
                 border-radius: 6px;
                 box-shadow: var(--shadow-floating-medium);
                 font-size: 12px;
                 line-height: 1.5;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--fgColor-default, var (--color-fg-default));
                 z-index: 10000;
                 display: none;
             }
@@ -1168,39 +1020,30 @@
                 font-weight: 600;
             }
 
+            .bookmarks-sync-help-tooltip p {
+                margin: 0 0 8px 0;
+            }
+
             .bookmarks-sync-help-tooltip ol {
                 margin: 0;
                 padding-left: 20px;
             }
 
+            .bookmarks-sync-help-tooltip li {
+                margin-bottom: 4px;
+            }
+
+            .bookmarks-sync-help-tooltip strong {
+                font-weight: 600;
+            }
+
             .bookmarks-sync-help-tooltip code {
                 padding: 2px 4px;
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                background-color: var(--bgColor-neutral-muted, var (--color-neutral-muted));
                 border-radius: 3px;
                 font-family: monospace;
                 font-size: 11px;
             }
-
-            /* Mobile separator */
-            @media (max-width: 768px) {
-                .bookmarks-filter {
-                    gap: 6px;
-                }
-
-                .bookmarks-filter-separator-mobile {
-                    width: 100%;
-                    height: 1px;
-                    background-color: var(--borderColor-muted, var(--color-border-muted));
-                    margin: 4px 0;
-                }
-            }
-
-            @media (prefers-color-scheme: dark) {
-                .SelectMenu-checkbox:checked {
-                    background-color: #1f6feb;
-                    border-color: #1f6feb;
-                }
-}
         `;
         document.head.appendChild(style);
     }
@@ -1226,7 +1069,8 @@
             header.querySelector('.SelectMenu-closeButton').addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                modal.closest('details')?.removeAttribute('open');
+                const details = modal.closest('details');
+                if (details) details.removeAttribute('open');
             });
 
             modal.appendChild(header);
@@ -1235,43 +1079,7 @@
             listContainer.className = 'SelectMenu-list';
 
             const lists = Storage.getLists();
-
-            // Add General list first
-            const generalLabel = document.createElement('label');
-            generalLabel.className = 'SelectMenu-item';
-
-            const generalCheckbox = document.createElement('input');
-            generalCheckbox.type = 'checkbox';
-            generalCheckbox.className = 'SelectMenu-checkbox';
-            generalCheckbox.checked = Storage.isBookmarkedInList(repo, DEFAULT_LIST);
-
-            generalCheckbox.addEventListener('change', (e) => {
-                e.stopPropagation();
-                if (e.target.checked) {
-                    Storage.addBookmark(repo, repoUrl, DEFAULT_LIST);
-                } else {
-                    Storage.removeBookmark(repo, DEFAULT_LIST);
-                }
-                renderDropdown();
-            });
-
-            const generalText = document.createElement('span');
-            generalText.className = 'SelectMenu-item-text';
-            generalText.textContent = DEFAULT_LIST;
-
-            generalLabel.appendChild(generalCheckbox);
-            generalLabel.appendChild(generalText);
-            listContainer.appendChild(generalLabel);
-
-            // Add separator after General
-            const separator = document.createElement('div');
-            separator.style.height = '0.5px';
-            separator.style.backgroundColor = 'var(--borderColor-muted, var(--color-border-muted))';
-            separator.style.margin = '8px 0';
-            listContainer.appendChild(separator);
-
-            // Add other lists
-            lists.filter(listName => listName !== DEFAULT_LIST).forEach((listName) => {
+            lists.forEach(listName => {
                 const label = document.createElement('label');
                 label.className = 'SelectMenu-item';
 
@@ -1301,13 +1109,13 @@
 
             modal.appendChild(listContainer);
 
-                const footer = document.createElement('div');
-                footer.className = 'SelectMenu-footer';
-                const addButton = document.createElement('button');
-                addButton.className = 'SelectMenu-item SelectMenu-item--add';
-                addButton.innerHTML = `
-                    <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
-                    <span class="SelectMenu-item-text">Create list</span>
+            const footer = document.createElement('div');
+            footer.className = 'SelectMenu-footer';
+            const addButton = document.createElement('button');
+            addButton.className = 'SelectMenu-item SelectMenu-item--add';
+            addButton.innerHTML = `
+                <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
+                <span class="SelectMenu-item-text">Create list</span>
             `;
             addButton.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1337,37 +1145,43 @@
         const bookmarked = Storage.isBookmarked(repo);
         const totalCount = Storage.getTotalCount();
 
-        // Update icon
+        // Update icon -- set the SVG fill only so text and surrounding spans keep their original color
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            const iconHtml = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            svg.outerHTML = iconHtml;
             const newSvg = mainButton.querySelector('svg');
-            if (newSvg && bookmarked) {
-                newSvg.style.fill = '#da3633';
+            if (newSvg) {
+                if (bookmarked) {
+                    newSvg.style.fill = '#da3633';
+                } else {
+                    newSvg.style.fill = '';
+                }
             }
+            // Ensure text remains default colored
+            const textSpan = mainButton.querySelector('span[data-bookmark-text="true"]');
+            if (textSpan) textSpan.style.color = '';
         }
 
-        // Update text
+        // Update text - find the span we marked
         const textSpan = mainButton.querySelector('span[data-bookmark-text="true"]');
         if (textSpan) {
             textSpan.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
         }
 
-        // Update counter
-        let counter = mainButton.querySelector('.Counter');
+        // Update counter - make sure it stays default colored
+        const counter = mainButton.querySelector('.Counter');
         if (totalCount > 0) {
-            const countText = totalCount.toLocaleString();
-            const countTitle = `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`;
-
             if (counter) {
-                counter.textContent = countText;
-                counter.setAttribute('title', countTitle);
+                counter.textContent = totalCount.toLocaleString();
+                counter.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+                counter.style.color = ''; // Reset any color
             } else {
-                counter = document.createElement('span');
-                counter.className = 'Counter';
-                counter.textContent = countText;
-                counter.setAttribute('title', countTitle);
-                mainButton.appendChild(counter);
+                const counterSpan = document.createElement('span');
+                counterSpan.className = 'Counter';
+                counterSpan.textContent = totalCount.toLocaleString();
+                counterSpan.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+                mainButton.appendChild(counterSpan);
             }
         } else if (counter) {
             counter.remove();
@@ -1381,51 +1195,68 @@
         const actionBar = document.querySelector('.pagehead-actions');
         if (!actionBar || document.querySelector('.gh-bookmark-container')) return;
 
+        // Find the star button container
         const starContainer = Array.from(actionBar.children).find(child =>
             child.querySelector('form[action*="/star"], form[action*="/unstar"]')
         );
-        if (!starContainer) return;
 
-        const starButton = starContainer.querySelector('button[type="submit"]');
-        if (!starButton) return;
+        if (!starContainer) return;
 
         const { repo, repoUrl } = repoInfo;
         const bookmarked = Storage.isBookmarked(repo);
         const totalCount = Storage.getTotalCount();
 
-        // Create container
+        // Find the actual star button to clone
+        const starButton = starContainer.querySelector('button[type="submit"]');
+        if (!starButton) return;
+
+        // Create new container
         const bookmarkContainer = document.createElement('li');
         bookmarkContainer.classList.add('gh-bookmark-container');
 
-        // Clone and customize main button
-        const mainButton = starButton.cloneNode(true);
-        mainButton.classList.add('gh-bookmark-main-button', 'btn', 'btn-sm', 'gh-bookmark-btn');
-        mainButton.type = 'button';
-        mainButton.removeAttribute('name');
-        mainButton.removeAttribute('value');
-        mainButton.removeAttribute('data-hydro-click');
-        mainButton.removeAttribute('data-hydro-click-hmac');
-        mainButton.removeAttribute('data-ga-click');
-        mainButton.style.borderTopRightRadius = '0';
-        mainButton.style.borderBottomRightRadius = '0';
-        mainButton.style.borderRight = '1px solid var(--borderColor-default, var(--color-border-default))';
+    // Clone just the button
+    const mainButton = starButton.cloneNode(true);
+    mainButton.classList.add('gh-bookmark-main-button', 'btn', 'btn-sm', 'gh-bookmark-btn');
+    mainButton.type = 'button';
+    mainButton.removeAttribute('name');
+    mainButton.removeAttribute('value');
+    mainButton.removeAttribute('data-hydro-click');
+    mainButton.removeAttribute('data-hydro-click-hmac');
+    mainButton.removeAttribute('data-ga-click');
+    // Remove border radius on right, add right border
+    mainButton.style.borderTopRightRadius = '0';
+    mainButton.style.borderBottomRightRadius = '0';
+    mainButton.style.borderRight = '1px solid var(--borderColor-default, var,--color-border-default)';
 
-        // Update icon
+        // Find and replace icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            const iconHtml = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            const svgParent = svg.parentElement;
+            svg.outerHTML = iconHtml;
+            // Color only the SVG itself, not the parent span
             if (bookmarked) {
                 const newSvg = mainButton.querySelector('svg');
-                if (newSvg) newSvg.style.fill = '#da3633';
+                if (newSvg) {
+                    newSvg.style.fill = '#da3633';
+                }
             }
         }
 
-        // Update text
+        // Remove any red color from the button and its children
+        mainButton.style.color = '';
+        const allSpans = mainButton.querySelectorAll('span');
+        allSpans.forEach(span => {
+            span.style.color = '';
+        });
+
+        // Find and replace text - look for visible text spans
         const spans = mainButton.querySelectorAll('span');
         let textFound = false;
         for (const span of spans) {
             const text = span.textContent.trim();
-            if ((text === 'Star' || text === 'Starred' || text === 'Unstar') && !span.children.length) {
+            // Only replace if this span contains just the text (not nested elements)
+            if ((text === 'Star' || text === 'Starred' || text === 'Unstar') && span.children.length === 0) {
                 span.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
                 span.setAttribute('data-bookmark-text', 'true');
                 textFound = true;
@@ -1433,354 +1264,163 @@
             }
         }
 
+        // If no text span found, find the span next to the icon
         if (!textFound) {
             const iconSpan = mainButton.querySelector('svg')?.parentElement;
-            if (iconSpan?.nextElementSibling?.tagName === 'SPAN') {
-                iconSpan.nextElementSibling.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
-                iconSpan.nextElementSibling.setAttribute('data-bookmark-text', 'true');
+            if (iconSpan && iconSpan.nextElementSibling) {
+                const textSpan = iconSpan.nextElementSibling;
+                if (textSpan.tagName === 'SPAN') {
+                    textSpan.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+                    textSpan.setAttribute('data-bookmark-text', 'true');
+                }
             }
         }
 
-        // Update counter
+        // Update or add counter
         let counter = mainButton.querySelector('.Counter');
-        if (totalCount > 0) {
-            const countText = totalCount.toLocaleString();
-            const countTitle = `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`;
-
-            if (counter) {
-                counter.textContent = countText;
-                counter.setAttribute('title', countTitle);
+        if (counter) {
+            if (totalCount > 0) {
+                counter.textContent = totalCount.toLocaleString();
+                counter.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
             } else {
-                counter = document.createElement('span');
-                counter.className = 'Counter';
-                counter.textContent = countText;
-                counter.setAttribute('title', countTitle);
-                mainButton.appendChild(counter);
+                counter.remove();
+                counter = null;
             }
-        } else if (counter) {
-            counter.remove();
+        } else if (totalCount > 0) {
+            counter = document.createElement('span');
+            counter.className = 'Counter';
+            counter.textContent = totalCount.toLocaleString();
+            counter.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+            mainButton.appendChild(counter);
         }
 
+        // Set click handler
         mainButton.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             openBookmarksModal();
         };
 
-        // Create button group with dropdown
+        // Create button group wrapper
         const btnGroup = document.createElement('div');
         btnGroup.className = 'BtnGroup d-flex';
         btnGroup.appendChild(mainButton);
 
-        const summary = document.createElement('summary');
-        summary.className = 'btn btn-sm gh-bookmark-dropdown gh-bookmark-dropdown-btn';
-        summary.setAttribute('aria-haspopup', 'menu');
-        summary.setAttribute('aria-label', 'Manage bookmark lists');
-        summary.innerHTML = ICONS.triangleDown;
+    // Create dropdown button (summary)
+    const summary = document.createElement('summary');
+    summary.className = 'btn btn-sm gh-bookmark-dropdown gh-bookmark-dropdown-btn';
+    summary.setAttribute('aria-haspopup', 'menu');
+    summary.setAttribute('aria-label', 'Manage bookmark lists');
+    summary.innerHTML = ICONS.triangleDown;
 
+        // Create dropdown container
         const details = document.createElement('details');
         details.className = 'details-reset details-overlay d-inline-block position-relative gh-bookmark-details';
 
         const menuContainer = document.createElement('details-menu');
         menuContainer.className = 'SelectMenu';
         menuContainer.setAttribute('role', 'menu');
-        menuContainer.appendChild(createSelectMenuDropdown(repo, repoUrl));
+
+        const modal = createSelectMenuDropdown(repo, repoUrl);
+        menuContainer.appendChild(modal);
 
         details.appendChild(summary);
         details.appendChild(menuContainer);
+
         btnGroup.appendChild(details);
         bookmarkContainer.appendChild(btnGroup);
 
         // Close dropdown on outside click
-        const closeHandler = (e) => {
+        document.addEventListener('click', (e) => {
             if (!details.contains(e.target) && details.hasAttribute('open')) {
                 details.removeAttribute('open');
             }
-        };
-        document.addEventListener('click', closeHandler);
+        });
 
+        // Insert before star button
         actionBar.insertBefore(bookmarkContainer, starContainer);
-    }
-
-    // ============================================================================
-    // LIST MANAGEMENT MODAL
-    // ============================================================================
-
-    function openListManagementModal() {
-        const overlay = document.createElement('div');
-        overlay.className = 'bookmarks-modal-overlay';
-        // Prevent closing when clicking overlay for list management modal
-        overlay.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
-        const modal = document.createElement('div');
-        modal.className = 'list-management-modal';
-
-        const header = document.createElement('div');
-        header.className = 'list-management-header';
-
-        const title = document.createElement('h3');
-        title.className = 'list-management-title';
-        title.textContent = 'Manage Lists';
-
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'bookmarks-modal-close';
-        closeBtn.innerHTML = ICONS.close;
-        closeBtn.addEventListener('click', closeListManagementModal);
-
-        header.appendChild(title);
-        header.appendChild(closeBtn);
-
-        const content = document.createElement('div');
-        content.className = 'list-management-content';
-
-        renderListManagementContent(content);
-
-        const footer = document.createElement('div');
-        footer.className = 'list-management-footer';
-
-        const createBtn = document.createElement('button');
-        createBtn.className = 'list-management-create-btn';
-        createBtn.innerHTML = `${ICONS.plus} Create List`;
-        createBtn.addEventListener('click', () => {
-            const newList = prompt('Enter new list name:');
-            if (newList?.trim()) {
-                if (Storage.addList(newList.trim())) {
-                    renderListManagementContent(content);
-                    Storage.dispatchUpdate();
-                } else {
-                    alert('A list with that name already exists.');
-                }
-            }
-        });
-
-        footer.appendChild(createBtn);
-
-        modal.appendChild(header);
-        modal.appendChild(content);
-        modal.appendChild(footer);
-        overlay.appendChild(modal);
-
-        document.body.appendChild(overlay);
-
-        const escapeHandler = (e) => {
-            if (e.key === 'Escape') closeListManagementModal();
-        };
-        document.addEventListener('keydown', escapeHandler);
-        overlay.escapeHandler = escapeHandler;
-    }
-
-    function renderListManagementContent(content) {
-        content.innerHTML = '';
-
-        const lists = Storage.getLists();
-        const bookmarks = Storage.getBookmarks();
-
-        let draggedElement = null;
-        let draggedIndex = -1;
-
-        lists.forEach((listName, index) => {
-            const item = document.createElement('div');
-            item.className = 'list-management-item';
-            if (listName === DEFAULT_LIST) {
-                item.classList.add('default-list');
-            }
-            item.draggable = listName !== DEFAULT_LIST;
-            item.dataset.listName = listName;
-            item.dataset.index = index;
-
-            const dragHandle = document.createElement('div');
-            dragHandle.className = 'list-management-item-drag-handle';
-            dragHandle.innerHTML = ICONS.gripVertical;
-            if (listName === DEFAULT_LIST) {
-                dragHandle.style.opacity = '0.3';
-                dragHandle.style.cursor = 'not-allowed';
-            }
-
-            const name = document.createElement('div');
-            name.className = 'list-management-item-name';
-            if (listName === DEFAULT_LIST) {
-                name.innerHTML = `${listName} ${ICONS.lock}`;
-            } else {
-                name.textContent = listName;
-            }
-
-            const count = document.createElement('div');
-            count.className = 'list-management-item-count';
-            const itemCount = bookmarks[listName]?.length || 0;
-            count.textContent = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
-
-            const actions = document.createElement('div');
-            actions.className = 'list-management-item-actions';
-
-            const renameBtn = document.createElement('button');
-            renameBtn.className = 'list-management-action-btn';
-            renameBtn.innerHTML = ICONS.pencil;
-            renameBtn.title = 'Rename list';
-            renameBtn.disabled = listName === DEFAULT_LIST;
-            renameBtn.addEventListener('click', () => {
-                const newName = prompt(`Rename list "${listName}" to:`, listName);
-                if (newName?.trim() && newName.trim() !== listName) {
-                    if (Storage.renameList(listName, newName.trim())) {
-                        renderListManagementContent(content);
-                        Storage.dispatchUpdate();
-                    }
-                }
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'list-management-action-btn danger';
-            deleteBtn.innerHTML = ICONS.trash;
-            deleteBtn.title = 'Delete list';
-            deleteBtn.disabled = listName === DEFAULT_LIST;
-            deleteBtn.addEventListener('click', () => {
-                const itemCount = bookmarks[listName]?.length || 0;
-                const message = itemCount > 0
-                    ? `Delete list "${listName}" and remove ${itemCount} bookmark${itemCount !== 1 ? 's' : ''}?`
-                    : `Delete list "${listName}"?`;
-
-                if (confirm(message)) {
-                    if (Storage.deleteList(listName)) {
-                        renderListManagementContent(content);
-                        Storage.dispatchUpdate();
-                    }
-                }
-            });
-
-            actions.appendChild(renameBtn);
-            actions.appendChild(deleteBtn);
-
-            item.appendChild(dragHandle);
-            item.appendChild(name);
-            item.appendChild(count);
-            item.appendChild(actions);
-
-            if (listName !== DEFAULT_LIST) {
-                item.addEventListener('dragstart', (e) => {
-                    draggedElement = item;
-                    draggedIndex = index;
-                    item.classList.add('dragging');
-                    e.dataTransfer.effectAllowed = 'move';
-                });
-
-                item.addEventListener('dragend', () => {
-                    item.classList.remove('dragging');
-                });
-            }
-
-            item.addEventListener('dragover', (e) => {
-                if (draggedElement && draggedElement !== item && listName !== DEFAULT_LIST) {
-                    e.preventDefault();
-                    const rect = item.getBoundingClientRect();
-                    const midpoint = rect.top + rect.height / 2;
-
-                    if (e.clientY < midpoint) {
-                        item.style.borderTop = '2px solid var(--button-primary-bgColor-rest, var(--color-btn-primary-bg))';
-                        item.style.borderBottom = '';
-                    } else {
-                        item.style.borderBottom = '2px solid var(--button-primary-bgColor-rest, var(--color-btn-primary-bg))';
-                        item.style.borderTop = '';
-                    }
-                }
-            });
-
-            item.addEventListener('dragleave', () => {
-                item.style.borderTop = '';
-                item.style.borderBottom = '';
-            });
-
-            item.addEventListener('drop', (e) => {
-                e.preventDefault();
-                item.style.borderTop = '';
-                item.style.borderBottom = '';
-
-                if (draggedElement && draggedElement !== item && listName !== DEFAULT_LIST) {
-                    const dropIndex = parseInt(item.dataset.index);
-                    const allLists = Storage.getLists();
-
-                    const newOrder = [...allLists];
-                    const [removed] = newOrder.splice(draggedIndex, 1);
-                    newOrder.splice(dropIndex, 0, removed);
-
-                    Storage.saveListOrder(newOrder);
-                    renderListManagementContent(content);
-                    Storage.dispatchUpdate();
-                }
-            });
-
-            content.appendChild(item);
-        });
-    }
-
-    function closeListManagementModal() {
-        const overlays = document.querySelectorAll('.bookmarks-modal-overlay');
-        overlays.forEach(overlay => {
-            if (overlay.querySelector('.list-management-modal')) {
-                if (overlay.escapeHandler) {
-                    document.removeEventListener('keydown', overlay.escapeHandler);
-                }
-                overlay.remove();
-            }
-        });
     }
 
     // ============================================================================
     // BOOKMARKS VIEWER MODAL
     // ============================================================================
 
-    function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = DEFAULT_LIST) {
+    function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
         const bookmarks = Storage.getBookmarks();
+        const lists = ['All', ...Storage.getLists()];
 
         filterEl.innerHTML = '';
 
-        // Add Settings button
-        const settingsBtn = document.createElement('button');
-        settingsBtn.className = 'bookmarks-manage-btn';
-        settingsBtn.innerHTML = `${ICONS.gear}`;
-        settingsBtn.title = 'Manage Lists';
-        settingsBtn.addEventListener('click', openListManagementModal);
-        filterEl.appendChild(settingsBtn);
+        let draggedElement = null;
+        let draggedIndex = -1;
 
-        // Add separator between Settings and lists
-        const separator = document.createElement('div');
-        separator.className = 'bookmarks-filter-separator';
-        filterEl.appendChild(separator);
-
-        // Add General button
-        const generalBtn = document.createElement('button');
-        generalBtn.className = `bookmarks-filter-btn ${DEFAULT_LIST === activeFilter ? 'active' : ''}`;
-        generalBtn.textContent = DEFAULT_LIST;
-        generalBtn.dataset.listName = DEFAULT_LIST;
-        generalBtn.addEventListener('click', () => {
-            renderBookmarksModal(contentEl, filterEl, statsEl, DEFAULT_LIST);
-        });
-        filterEl.appendChild(generalBtn);
-
-        // Add mobile separator after General
-        if (window.innerWidth <= 768) {
-            const mobileSeparator = document.createElement('div');
-            mobileSeparator.className = 'bookmarks-filter-separator-mobile';
-            filterEl.appendChild(mobileSeparator);
-        }
-
-        // Add other list filter buttons
-        const otherLists = Storage.getLists().filter(listName => listName !== DEFAULT_LIST);
-        otherLists.forEach((listName) => {
+        lists.forEach((listName, index) => {
             const btn = document.createElement('button');
-            btn.className = `bookmarks-filter-btn ${listName === activeFilter ? 'active' : ''}`;
+            btn.className = 'bookmarks-filter-btn' + (listName === activeFilter ? ' active' : '');
             btn.textContent = listName;
+            btn.draggable = listName !== 'All';
             btn.dataset.listName = listName;
 
             btn.addEventListener('click', () => {
                 renderBookmarksModal(contentEl, filterEl, statsEl, listName);
             });
 
+            // Drag and drop for reordering
+            if (listName !== 'All') {
+                btn.addEventListener('dragstart', (e) => {
+                    draggedElement = btn;
+                    draggedIndex = index - 1; // -1 because 'All' is not in the order
+                    btn.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                btn.addEventListener('dragend', () => {
+                    btn.classList.remove('dragging');
+                    filterEl.querySelectorAll('.bookmarks-filter-btn').forEach(b => {
+                        b.classList.remove('drag-over');
+                    });
+                });
+
+                btn.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (draggedElement && draggedElement !== btn) {
+                        btn.classList.add('drag-over');
+                    }
+                });
+
+                btn.addEventListener('dragleave', () => {
+                    btn.classList.remove('drag-over');
+                });
+
+                btn.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    btn.classList.remove('drag-over');
+
+                    if (draggedElement && draggedElement !== btn) {
+                        const allLists = Storage.getLists();
+                        const dropIndex = Array.from(filterEl.children).indexOf(btn) - 1;
+
+                        const newOrder = [...allLists];
+                        const [removed] = newOrder.splice(draggedIndex, 1);
+                        newOrder.splice(dropIndex, 0, removed);
+
+                        Storage.saveListOrder(newOrder);
+                        renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
+                    }
+                });
+            }
+
             filterEl.appendChild(btn);
         });
 
+        // Small explanatory hint beneath the list-name buttons
+        const hint = document.createElement('div');
+        hint.className = 'bookmarks-filter-hint';
+        hint.textContent = 'Tip: Drag and drop lists to reorder them.';
+        filterEl.appendChild(hint);
+
         let displayBookmarks = [];
-        if (activeFilter === DEFAULT_LIST) {
+        if (activeFilter === 'All') {
             Object.entries(bookmarks).forEach(([listName, items]) => {
                 items.forEach(item => {
                     const existing = displayBookmarks.find(b => b.repo === item.repo);
@@ -1791,11 +1431,13 @@
                     }
                 });
             });
-        } else if (bookmarks[activeFilter]) {
-            displayBookmarks = bookmarks[activeFilter].map(item => ({
-                ...item,
-                lists: [activeFilter]
-            }));
+        } else {
+            if (bookmarks[activeFilter]) {
+                displayBookmarks = bookmarks[activeFilter].map(item => ({
+                    ...item,
+                    lists: [activeFilter]
+                }));
+            }
         }
 
         if (displayBookmarks.length === 0) {
@@ -1815,10 +1457,14 @@
                 const item = document.createElement('div');
                 item.className = 'bookmark-item';
 
+                // Get all lists to show current membership
                 const allLists = Storage.getLists();
-                const currentLists = allLists.filter(listName =>
-                    Storage.isBookmarkedInList(bookmark.repo, listName)
-                );
+                const currentLists = [];
+                allLists.forEach(listName => {
+                    if (Storage.isBookmarkedInList(bookmark.repo, listName)) {
+                        currentLists.push(listName);
+                    }
+                });
 
                 item.innerHTML = `
                     <div class="bookmark-icon-container">${ICONS.bookmarkHollow}</div>
@@ -1830,9 +1476,7 @@
                     </div>
                     <div class="bookmark-right-group">
                         <div class="bookmark-lists" data-repo="${bookmark.repo}">
-                            ${currentLists.map(l =>
-                                `<span class="bookmark-list-tag ${l === DEFAULT_LIST ? 'default-list' : ''}" data-list="${l}">${l}</span>`
-                            ).join('')}
+                            ${currentLists.map(l => `<span class="bookmark-list-tag" data-list="${l}">${l}</span>`).join('')}
                         </div>
                         <button class="bookmark-action-btn danger" title="Remove bookmark" data-repo="${bookmark.repo}">
                             ${ICONS.trash}
@@ -1840,12 +1484,15 @@
                     </div>
                 `;
 
+                // Click entire item to open
                 item.addEventListener('click', (e) => {
+                    // Only open the repo URL if not clicking a list tag or action button
                     if (!e.target.closest('.bookmark-right-group')) {
                         window.open(bookmark.repoUrl, '_blank');
                     }
                 });
 
+                // List tag management
                 const listTags = item.querySelectorAll('.bookmark-list-tag');
                 listTags.forEach(tag => {
                     tag.addEventListener('click', (e) => {
@@ -1879,23 +1526,28 @@
     }
 
     function showListManagementDropdown(targetElement, repo, currentLists) {
+        // If a dropdown already exists...
         const existing = document.querySelector('.bookmark-list-dropdown');
         if (existing) {
+            // If it's for the same repo + list target, treat this as a "second click" and close the modal
             if (existing.dataset.targetRepo === repo && existing.dataset.targetList === targetElement.dataset.list) {
                 existing.remove();
                 return;
             }
+            // Otherwise remove any other open dropdown before opening a new one
             existing.remove();
         }
 
         const dropdown = document.createElement('div');
         dropdown.className = 'bookmark-list-dropdown';
+        // Track which element opened this dropdown
         dropdown.dataset.targetRepo = repo;
         dropdown.dataset.targetList = targetElement.dataset.list || '';
 
         const allLists = Storage.getLists();
         const bookmarks = Storage.getBookmarks();
 
+        // Get the repo URL from bookmarks
         let repoUrl = '';
         for (const [listName, items] of Object.entries(bookmarks)) {
             const found = items.find(b => b.repo === repo);
@@ -1921,15 +1573,20 @@
                     Storage.removeBookmark(repo, listName);
                 }
 
+                // Update the tag display
                 const listContainer = document.querySelector(`[data-repo="${repo}"]`);
                 if (listContainer) {
-                    const newLists = allLists.filter(list =>
-                        Storage.isBookmarkedInList(repo, list)
-                    );
+                    const newLists = [];
+                    allLists.forEach(list => {
+                        if (Storage.isBookmarkedInList(repo, list)) {
+                            newLists.push(list);
+                        }
+                    });
                     listContainer.innerHTML = newLists.map(l =>
-                        `<span class="bookmark-list-tag ${l === DEFAULT_LIST ? 'default-list' : ''}" data-list="${l}">${l}</span>`
+                        `<span class="bookmark-list-tag" data-list="${l}">${l}</span>`
                     ).join('');
 
+                    // Re-attach click handlers
                     listContainer.querySelectorAll('.bookmark-list-tag').forEach(tag => {
                         tag.addEventListener('click', (e) => {
                             e.stopPropagation();
@@ -1940,25 +1597,21 @@
             });
 
             const text = document.createElement('span');
-            text.className = 'SelectMenu-item-text';
-
-            if (listName === DEFAULT_LIST) {
-                text.innerHTML = `${listName} ${ICONS.lock}`;
-            } else {
-                text.textContent = listName;
-            }
+            text.textContent = listName;
 
             item.appendChild(checkbox);
             item.appendChild(text);
             dropdown.appendChild(item);
         });
 
+        // Position dropdown
         const rect = targetElement.getBoundingClientRect();
         dropdown.style.left = rect.left + 'px';
         dropdown.style.top = (rect.bottom + 4) + 'px';
 
         document.body.appendChild(dropdown);
 
+        // Close on outside click
         const closeDropdown = (e) => {
             if (!dropdown.contains(e.target) && e.target !== targetElement) {
                 dropdown.remove();
@@ -1970,10 +1623,12 @@
 
     function openBookmarksModal() {
         if (modalOpen) return;
-        modalOpen = true;
 
         const overlay = document.createElement('div');
         overlay.className = 'bookmarks-modal-overlay';
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeBookmarksModal();
+        });
 
         const modal = document.createElement('div');
         modal.className = 'bookmarks-modal';
@@ -1983,7 +1638,7 @@
 
         const title = document.createElement('h2');
         title.className = 'bookmarks-modal-title';
-        title.innerHTML = `<span>Your Bookmarks</span>`;
+        title.innerHTML = `${ICONS.bookmarkHollow}<span>Your Bookmarks</span>`;
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'bookmarks-modal-close';
@@ -2012,16 +1667,15 @@
         const syncStatus = document.createElement('span');
         syncStatus.className = 'bookmarks-sync-status';
         const token = Storage.getSyncToken();
-        const gistId = Storage.getGistId();
-        syncStatus.textContent = (token && gistId) ? '✓ Auto-sync enabled' : 'Auto-sync not configured';
+        syncStatus.textContent = token ? '✓ Sync configured' : 'Sync not configured';
 
         const configBtn = document.createElement('button');
         configBtn.className = 'bookmarks-sync-btn';
-        configBtn.textContent = 'Configure';
+        configBtn.textContent = 'Configure Sync';
         configBtn.addEventListener('click', configureSyncToken);
 
         const backupBtn = document.createElement('button');
-        backupBtn.className = 'bookmarks-sync-btn';
+        backupBtn.className = 'bookmarks-sync-btn primary';
         backupBtn.textContent = 'Backup';
         backupBtn.addEventListener('click', async () => {
             backupBtn.disabled = true;
@@ -2029,7 +1683,7 @@
             const result = await Storage.syncToGist();
             if (result.success) {
                 alert('Backup successful!');
-                syncStatus.textContent = '✓ Auto-sync enabled';
+                syncStatus.textContent = `✓ Last backup: ${new Date(result.time).toLocaleString()}`;
             } else {
                 alert('Backup failed: ' + (result.error || 'Unknown error'));
             }
@@ -2054,25 +1708,6 @@
             restoreBtn.textContent = 'Restore';
         });
 
-        const helpIcon = document.createElement('div');
-        helpIcon.className = 'bookmarks-sync-help';
-        helpIcon.innerHTML = `
-            ${ICONS.questionMark}
-            <div class="bookmarks-sync-help-tooltip">
-                <h4>How to use Sync</h4>
-                <p><strong>Setup:</strong></p>
-                <ol>
-                    <li>Click "Configure"</li>
-                    <li>Create a token at <code>github.com/settings/tokens/new</code></li>
-                    <li>Grant only the <strong>gist</strong> scope</li>
-                    <li>Paste the token when prompted</li>
-                </ol>
-                <p><strong>Auto-sync:</strong> Once configured, bookmarks automatically sync when you add or remove them</p>
-                <p><strong>Backup:</strong> Manually save your bookmarks to a private Gist</p>
-                <p><strong>Restore:</strong> Load bookmarks from your Gist (useful for syncing across browsers)</p>
-            </div>
-        `;
-
         syncSection.appendChild(syncStatus);
         syncSection.appendChild(helpIcon);
         syncSection.appendChild(configBtn);
@@ -2089,6 +1724,7 @@
         renderBookmarksModal(content, filterContainer, stats);
 
         document.body.appendChild(overlay);
+        modalOpen = true;
         document.body.style.overflow = 'hidden';
 
         const escapeHandler = (e) => {
@@ -2102,20 +1738,37 @@
         const currentToken = Storage.getSyncToken();
         const message = currentToken
             ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
-            : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: ' + SYNC_HELP_URL;
+            : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: https://github.com/settings/tokens/new';
 
         const token = prompt(message, '');
 
         if (token !== null && token.trim() !== '') {
             Storage.setSyncToken(token.trim());
-            alert('Sync token saved! You can now backup and restore your bookmarks.\n\nAuto-sync will begin once you create your first backup.');
+            alert('Sync token saved! You can now backup and restore your bookmarks.');
             const syncStatus = document.querySelector('.bookmarks-sync-status');
             if (syncStatus) {
-                const gistId = Storage.getGistId();
-                syncStatus.textContent = gistId ? '✓ Auto-sync enabled' : '✓ Sync configured (create backup to enable auto-sync)';
+                syncStatus.textContent = '✓ Sync configured';
             }
         }
     }
+
+    const helpIcon = document.createElement('div');
+        helpIcon.className = 'bookmarks-sync-help';
+        helpIcon.innerHTML = `
+            ${ICONS.questionMark}
+            <div class="bookmarks-sync-help-tooltip">
+                <h4>How to use Sync</h4>
+                <p><strong>Setup:</strong></p>
+                <ol>
+                    <li>Click "Configure Sync"</li>
+                    <li>Create a token at <code>github.com/settings/tokens/new</code></li>
+                    <li>Grant only the <strong>gist</strong> scope</li>
+                    <li>Paste the token when prompted</li>
+                </ol>
+                <p><strong>Backup:</strong> Saves your bookmarks to a private Gist</p>
+                <p><strong>Restore:</strong> Loads bookmarks from your Gist (useful for syncing across browsers)</p>
+            </div>
+        `;
 
     function closeBookmarksModal() {
         const modal = document.querySelector('.bookmarks-modal-overlay');
@@ -2128,164 +1781,67 @@
     }
 
     // ============================================================================
-    // PROFILE MENU & OVERVIEW PAGE INTEGRATION
+    // PROFILE MENU & OVERVIEW PAGE
     // ============================================================================
 
-    function addBookmarksToProfileMenu() {
-        // Find the "Repositories" link by its href in the profile dropdown
-        const reposLink = document.querySelector('a[href*="?tab=repositories"]');
-        if (!reposLink) return;
-
-        // Make sure this is in a dropdown menu (has prc-ActionList classes), not main navigation
-        const parentList = reposLink.closest('ul');
-        if (!parentList || !parentList.className.includes('prc-ActionList')) return;
-
-        // Don't add if already exists
-        if (parentList.querySelector('.gh-bookmarks-profile-item')) return;
-
-        // Get the parent li element
-        const reposLi = reposLink.parentElement;
-        if (!reposLi) return;
-
-        // Clone the repositories item to maintain consistent styling
-        const bookmarksLi = reposLi.cloneNode(true);
-        const bookmarksLink = bookmarksLi.querySelector('a');
-
-        if (!bookmarksLink) return;
-
-        // Mark it so we don't add it multiple times
-        bookmarksLi.classList.add('gh-bookmarks-profile-item');
-
-        // Update the link attributes
-        bookmarksLink.removeAttribute('href');
-        bookmarksLink.removeAttribute('id');
-        bookmarksLink.style.cursor = 'pointer';
-
-        // Update the icon
-        const iconContainer = bookmarksLink.querySelector('svg')?.parentElement;
-        if (iconContainer) {
-            const svg = iconContainer.querySelector('svg');
-            if (svg) {
-                svg.outerHTML = ICONS.bookmarkHollow;
-            }
-        }
-
-        // Update the text - find the span with the label
-        const labelSpan = bookmarksLink.querySelector('[id$="--label"]');
-        if (labelSpan) {
-            labelSpan.textContent = 'Bookmarks';
-        }
-
-        // Add click handler
-        bookmarksLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openBookmarksModal();
-
-            // Close any open details/dropdowns
-            document.querySelectorAll('details[open]').forEach(details => {
-                details.removeAttribute('open');
-            });
-        });
-
-        // Insert after the repositories item
-        reposLi.parentElement.insertBefore(bookmarksLi, reposLi.nextSibling);
-    }
-
-    function addBookmarksTabToProfilePage() {
-        // Find the navigation container on profile pages
-        const profileNav = document.querySelector('nav.UnderlineNav, nav[aria-label="User"]');
-        if (!profileNav || profileNav.querySelector('.gh-bookmarks-tab')) return;
-
-        // Find the Stars tab
-        const starsLink = profileNav.querySelector('a[href*="?tab=stars"], a#stars-tab');
+    function addBookmarksMenuItem() {
+        const starsLink = document.querySelector('a[href*="?tab=stars"]');
         if (!starsLink) return;
 
-        // Get the parent container (li element)
-        const starsContainer = starsLink.closest('li');
-        if (!starsContainer) return;
+        const parentList = starsLink.closest('ul, [role="menu"]');
+        if (!parentList || parentList.querySelector('.gh-bookmarks-item')) return;
 
-        // Clone the stars tab to maintain consistent styling
-        const bookmarksContainer = starsContainer.cloneNode(true);
-        bookmarksContainer.classList.add('gh-bookmarks-tab');
+        const starsParent = starsLink.parentElement;
+        const bookmarksParent = starsParent.cloneNode(true);
+        const bookmarksLink = bookmarksParent.querySelector('a');
 
-        const bookmarksLink = bookmarksContainer.querySelector('a');
-        if (!bookmarksLink) return;
-
-        // Remove any href and data attributes
+        bookmarksLink.classList.add('gh-bookmarks-item');
         bookmarksLink.removeAttribute('href');
-        bookmarksLink.removeAttribute('id');
         bookmarksLink.removeAttribute('data-turbo-frame');
-        bookmarksLink.removeAttribute('data-hovercard-type');
-        bookmarksLink.removeAttribute('data-hovercard-url');
-        bookmarksLink.removeAttribute('data-tab-item');
-        bookmarksLink.removeAttribute('data-selected-links');
-        bookmarksLink.removeAttribute('data-hydro-click');
-        bookmarksLink.removeAttribute('data-hydro-click-hmac');
-        bookmarksLink.removeAttribute('aria-current');
         bookmarksLink.style.cursor = 'pointer';
 
-        // Update the icon
-        const svg = bookmarksLink.querySelector('svg');
-        if (svg) {
-            svg.outerHTML = ICONS.bookmarkHollow;
-            const newSvg = bookmarksLink.querySelector('svg');
-            if (newSvg) {
-                newSvg.style.width = '16px';
-                newSvg.style.height = '16px';
-                // Match native GitHub tab spacing - apply margin to the SVG itself
-                newSvg.style.marginRight = '6px';
-                // Adjust icon position and match native fill color
-                newSvg.style.position = 'relative';
-                newSvg.style.top = '1px';
-                newSvg.style.fill = 'var(--fgColor-muted)';
-            }
+        const iconContainer = bookmarksLink.querySelector('svg')?.parentElement;
+        if (iconContainer?.querySelector('svg')) {
+            iconContainer.querySelector('svg').outerHTML = ICONS.bookmarkHollow;
         }
 
-        // Update the text and counter
-        const spans = bookmarksLink.querySelectorAll('span');
-        for (const span of spans) {
-            const text = span.textContent.trim();
-            // Look for "Stars" text
-            if (text === 'Stars') {
+        const textElements = bookmarksLink.querySelectorAll('span');
+        for (const span of textElements) {
+            if (span.textContent.toLowerCase().includes('star')) {
                 span.textContent = 'Bookmarks';
-            }
-            // Look for the counter (a number)
-            else if (text.match(/^\d+$/)) {
-                const totalCount = Storage.getTotalCount();
-                span.textContent = totalCount.toString();
-                span.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+                break;
             }
         }
 
-        // Add click handler
+        const counterBadge = bookmarksLink.querySelector('.Counter');
+        if (counterBadge) {
+            const totalCount = Storage.getTotalCount();
+            if (totalCount > 0) {
+                counterBadge.textContent = totalCount;
+                counterBadge.setAttribute('title', totalCount.toString());
+            } else {
+                counterBadge.remove();
+            }
+        }
+
         bookmarksLink.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             openBookmarksModal();
+
+            const dropdown = document.querySelector('details[open]');
+            if (dropdown) dropdown.removeAttribute('open');
         });
 
-        // Insert before the Stars tab
-        starsContainer.parentElement.insertBefore(bookmarksContainer, starsContainer);
+        starsParent.parentNode.insertBefore(bookmarksParent, starsParent);
     }
 
     // ============================================================================
-    // EVENT LISTENERS & INITIALIZATION
+    // EVENT LISTENERS
     // ============================================================================
 
     window.addEventListener('ghBookmarksUpdated', () => {
         updateBookmarkButton();
-
-        // Update counter in profile tab if it exists
-        const profileTab = document.querySelector('.gh-bookmarks-tab');
-        if (profileTab) {
-            const counterSpan = profileTab.querySelector('span[title*="bookmark"]');
-            if (counterSpan) {
-                const totalCount = Storage.getTotalCount();
-                counterSpan.textContent = totalCount.toString();
-                counterSpan.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
-            }
-        }
 
         if (modalOpen) {
             const modal = document.querySelector('.bookmarks-modal');
@@ -2295,11 +1851,15 @@
                 const stats = modal.querySelector('.bookmarks-stats');
                 if (content && filter && stats) {
                     const activeFilter = filter.querySelector('.bookmarks-filter-btn.active');
-                    renderBookmarksModal(content, filter, stats, activeFilter?.textContent || DEFAULT_LIST);
+                    renderBookmarksModal(content, filter, stats, activeFilter?.textContent || 'All');
                 }
             }
         }
     });
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
 
     function init() {
         injectStyles();
@@ -2308,16 +1868,12 @@
             setTimeout(addBookmarkButton, 500);
         }
 
-        // Add bookmarks to profile dropdown menu
-        setTimeout(addBookmarksToProfileMenu, 500);
-
-        // Add bookmarks tab to profile overview page
-        setTimeout(addBookmarksTabToProfilePage, 500);
+        setTimeout(addBookmarksMenuItem, 500);
     }
 
-    function watchForProfileMenu() {
+    function watchForChanges() {
         const observer = new MutationObserver(() => {
-            addBookmarksToProfileMenu();
+            addBookmarksMenuItem();
         });
 
         observer.observe(document.body, {
@@ -2328,18 +1884,16 @@
         });
     }
 
-    // Initialize
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             init();
-            watchForProfileMenu();
+            watchForChanges();
         });
     } else {
         init();
-        watchForProfileMenu();
+        watchForChanges();
     }
 
-    // URL change detection
     let lastUrl = location.href;
     new MutationObserver(() => {
         const url = location.href;
