@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      5.0.0
+// @version      5.0.2
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -21,7 +21,8 @@
         SYNC_TOKEN: 'ghBookmarkSyncToken',
         SYNC_GIST_ID: 'ghBookmarkSyncGistId',
         CACHE: 'ghBookmarkCache',
-        CACHE_TIMESTAMP: 'ghBookmarkCacheTimestamp'
+        CACHE_TIMESTAMP: 'ghBookmarkCacheTimestamp',
+        MODAL_OPEN: 'ghBookmarkModalOpen' // Track if modal was open
     };
 
     const DEFAULT_LIST = 'General';
@@ -39,7 +40,7 @@
         trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
         questionMark: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085h.001a.749.749 0 1 1-1.342-.67c.169-.339.436-.701.849-.977C6.845 4.16 7.369 4 8 4a2.756 2.756 0 0 1 1.638.525c.503.377.862.965.862 1.725 0 .448-.115.83-.329 1.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6.24 6.24 0 0 0-.26.16.952.952 0 0 0-.276.245.75.75 0 0 1-1.248-.832c.184-.264.42-.489.692-.661.103-.067.207-.132.313-.195l.007-.004c.1-.061.182-.11.258-.161a.969.969 0 0 0 .277-.245C8.96 6.514 9 6.427 9 6.25c0-.412-.155-.826-.57-1.12A1.256 1.256 0 0 0 8 4.75c-.361 0-.67.1-.894.27-.228.173-.4.412-.534.714v.001ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
         pencil: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path></svg>`,
-        gear: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path fill="currentColor" d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path></svg>`,
+        gear: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path fill="currentColor" d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.5 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path></svg>`,
         gripVertical: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-4 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5-9a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
         lock: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z"></path></svg>`
     };
@@ -353,6 +354,15 @@
         async initialize() {
             // Try to load from Gist on startup
             await this.fetchFromGist(true);
+        },
+
+        // Modal state persistence
+        setModalOpen(isOpen) {
+            localStorage.setItem(STORAGE_KEYS.MODAL_OPEN, isOpen ? 'true' : 'false');
+        },
+
+        getModalOpen() {
+            return localStorage.getItem(STORAGE_KEYS.MODAL_OPEN) === 'true';
         }
     };
 
@@ -379,7 +389,7 @@
     };
 
     // ============================================================================
-    // STYLES (keeping the same CSS)
+    // STYLES (updated for Configure button and other improvements)
     // ============================================================================
 
     function injectStyles() {
@@ -698,12 +708,28 @@
                 background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
             }
 
+            /* UPDATED: Bookmarks filter layout */
             .bookmarks-filter {
                 display: flex;
-                gap: 8px;
+                justify-content: space-between;
+                align-items: center;
                 padding: 24px 24px 24px 24px;
                 flex-wrap: wrap;
+            }
+
+            .bookmarks-filter-left {
+                display: flex;
+                gap: 8px;
                 align-items: center;
+                flex-wrap: wrap;
+                flex: 1;
+            }
+
+            .bookmarks-filter-right {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-shrink: 0;
             }
 
             .bookmarks-filter-separator {
@@ -1156,9 +1182,55 @@
                 font-size: 11px;
             }
 
+            /* Configure button styles */
+            .bookmarks-sync-btn {
+                padding: 5px 12px !important;
+                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border)) !important;
+                border-radius: 6px !important;
+                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg)) !important;
+                color: var(--button-default-fgColor-rest, var(--color-btn-text)) !important;
+                font-size: 12px !important;
+                font-weight: 500 !important;
+                cursor: pointer !important;
+                white-space: nowrap !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-decoration: none !important;
+                height: 28px !important;
+                line-height: 20px !important;
+                transition: 80ms cubic-bezier(0.33, 1, 0.68, 1) !important;
+                transition-property: color,background-color,box-shadow,border-color !important;
+                position: relative !important;
+            }
+
+            .bookmarks-sync-btn:hover {
+                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg)) !important;
+                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border)) !important;
+                text-decoration: none !important;
+            }
+
+            .bookmarks-sync-btn:focus {
+                outline: 2px solid var(--focus-outlineColor, var(--color-accent-fg)) !important;
+                outline-offset: 2px !important;
+            }
+
+            .bookmarks-sync-btn:active {
+                background-color: var(--button-default-bgColor-active, var(--color-btn-active-bg)) !important;
+                border-color: var(--button-default-borderColor-active, var(--color-btn-active-border)) !important;
+            }
+
             @media (max-width: 768px) {
                 .bookmarks-filter {
-                    gap: 6px;
+                    flex-direction: column;
+                    gap: 12px;
+                    align-items: stretch;
+                }
+
+                .bookmarks-filter-left,
+                .bookmarks-filter-right {
+                    width: 100%;
+                    justify-content: center;
                 }
 
                 .bookmarks-filter-separator-mobile {
@@ -1180,7 +1252,7 @@
     }
 
     // ============================================================================
-    // BOOKMARK BUTTON (REPO PAGES)
+    // BOOKMARK BUTTON (REPO PAGES) - FIXED EVENT HANDLING
     // ============================================================================
 
     function createSelectMenuDropdown(repo, repoUrl) {
@@ -1200,7 +1272,10 @@
             header.querySelector('.SelectMenu-closeButton').addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                modal.closest('details')?.removeAttribute('open');
+                const details = modal.closest('details');
+                if (details) {
+                    details.removeAttribute('open');
+                }
             });
 
             const listContainer = document.createElement('div');
@@ -1466,10 +1541,13 @@
         btnGroup.appendChild(details);
         bookmarkContainer.appendChild(btnGroup);
 
-        // Close dropdown on outside click
+        // Close dropdown on outside click - FIXED EVENT HANDLER
         const closeHandler = (e) => {
-            if (!details.contains(e.target) && details.hasAttribute('open')) {
-                details.removeAttribute('open');
+            // Check if event target is valid and has closest method
+            if (e && e.target && typeof e.target.closest === 'function') {
+                if (!details.contains(e.target) && details.hasAttribute('open')) {
+                    details.removeAttribute('open');
+                }
             }
         };
         document.addEventListener('click', closeHandler);
@@ -1478,14 +1556,18 @@
     }
 
     // ============================================================================
-    // LIST MANAGEMENT MODAL
+    // LIST MANAGEMENT MODAL - FIXED EVENT HANDLING
     // ============================================================================
 
     function openListManagementModal() {
         const overlay = document.createElement('div');
         overlay.className = 'bookmarks-modal-overlay';
+
+        // Fixed: Use proper event handling
         overlay.addEventListener('click', (e) => {
-            e.stopPropagation();
+            if (e.target === overlay) {
+                closeListManagementModal();
+            }
         });
 
         const modal = document.createElement('div');
@@ -1702,27 +1784,37 @@
     }
 
     // ============================================================================
-    // BOOKMARKS VIEWER MODAL
+    // BOOKMARKS VIEWER MODAL - UPDATED WITH PROPER FILTER LAYOUT
     // ============================================================================
 
-    async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = DEFAULT_LIST) {
+    async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
         contentEl.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
         filterEl.innerHTML = '';
 
         const bookmarks = await Storage.getBookmarks();
 
-        // Add Settings button
-        const settingsBtn = document.createElement('button');
-        settingsBtn.className = 'bookmarks-manage-btn';
-        settingsBtn.innerHTML = `${ICONS.gear}`;
-        settingsBtn.title = 'Manage Lists';
-        settingsBtn.addEventListener('click', openListManagementModal);
-        filterEl.appendChild(settingsBtn);
+        // Create container for left side (filter buttons)
+        const filterLeft = document.createElement('div');
+        filterLeft.className = 'bookmarks-filter-left';
 
-        // Add separator
-        const separator = document.createElement('div');
-        separator.className = 'bookmarks-filter-separator';
-        filterEl.appendChild(separator);
+        // Create container for right side (Manage lists button)
+        const filterRight = document.createElement('div');
+        filterRight.className = 'bookmarks-filter-right';
+
+        // Add "All" button (only in modal) - LEFT SIDE
+        const allBtn = document.createElement('button');
+        allBtn.className = `bookmarks-filter-btn ${'All' === activeFilter ? 'active' : ''}`;
+        allBtn.textContent = 'All';
+        allBtn.dataset.listName = 'All';
+        allBtn.addEventListener('click', () => {
+            renderBookmarksModal(contentEl, filterEl, statsEl, 'All');
+        });
+        filterLeft.appendChild(allBtn);
+
+        // Add first separator after "All"
+        const separator1 = document.createElement('div');
+        separator1.className = 'bookmarks-filter-separator';
+        filterLeft.appendChild(separator1);
 
         // Add General button
         const generalBtn = document.createElement('button');
@@ -1732,14 +1824,12 @@
         generalBtn.addEventListener('click', () => {
             renderBookmarksModal(contentEl, filterEl, statsEl, DEFAULT_LIST);
         });
-        filterEl.appendChild(generalBtn);
+        filterLeft.appendChild(generalBtn);
 
-        // Add mobile separator after General
-        if (window.innerWidth <= 768) {
-            const mobileSeparator = document.createElement('div');
-            mobileSeparator.className = 'bookmarks-filter-separator-mobile';
-            filterEl.appendChild(mobileSeparator);
-        }
+        // Add second separator after General (before custom lists)
+        const separator2 = document.createElement('div');
+        separator2.className = 'bookmarks-filter-separator';
+        filterLeft.appendChild(separator2);
 
         // Add other list filter buttons
         const lists = await Storage.getLists();
@@ -1754,11 +1844,31 @@
                 renderBookmarksModal(contentEl, filterEl, statsEl, listName);
             });
 
-            filterEl.appendChild(btn);
+            filterLeft.appendChild(btn);
         });
 
+        // Add "Manage lists" button to the RIGHT SIDE
+        const settingsBtn = document.createElement('button');
+        settingsBtn.className = 'bookmarks-manage-btn';
+        settingsBtn.innerHTML = `${ICONS.gear}`;
+        settingsBtn.title = 'Manage Lists';
+        settingsBtn.addEventListener('click', openListManagementModal);
+        filterRight.appendChild(settingsBtn);
+
+        // Add mobile separator after custom lists
+        if (window.innerWidth <= 768) {
+            const mobileSeparator = document.createElement('div');
+            mobileSeparator.className = 'bookmarks-filter-separator-mobile';
+            filterLeft.appendChild(mobileSeparator);
+        }
+
+        // Append both sides to the filter container
+        filterEl.appendChild(filterLeft);
+        filterEl.appendChild(filterRight);
+
         let displayBookmarks = [];
-        if (activeFilter === DEFAULT_LIST) {
+        if (activeFilter === 'All') {
+            // Show all bookmarks from all lists
             Object.entries(bookmarks).forEach(([listName, items]) => {
                 items.forEach(item => {
                     const existing = displayBookmarks.find(b => b.repo === item.repo);
@@ -1769,7 +1879,16 @@
                     }
                 });
             });
+        } else if (activeFilter === DEFAULT_LIST) {
+            // Show only bookmarks in General list
+            if (bookmarks[DEFAULT_LIST]) {
+                displayBookmarks = bookmarks[DEFAULT_LIST].map(item => ({
+                    ...item,
+                    lists: [DEFAULT_LIST]
+                }));
+            }
         } else if (bookmarks[activeFilter]) {
+            // Show bookmarks from specific list
             displayBookmarks = bookmarks[activeFilter].map(item => ({
                 ...item,
                 lists: [activeFilter]
@@ -1824,8 +1943,11 @@
                 `;
 
                 item.addEventListener('click', (e) => {
-                    if (!e.target.closest('.bookmark-right-group')) {
-                        window.open(bookmark.repoUrl, '_blank');
+                    // FIXED: Check if target is valid before calling closest
+                    if (e && e.target && typeof e.target.closest === 'function') {
+                        if (!e.target.closest('.bookmark-right-group')) {
+                            window.open(bookmark.repoUrl, '_blank');
+                        }
                     }
                 });
 
@@ -1857,8 +1979,9 @@
 
             const total = displayBookmarks.length;
             const listCount = Object.keys(bookmarks).length;
+            const filterText = activeFilter === 'All' ? 'all lists' : `"${activeFilter}" list`;
             statsEl.querySelector('.bookmarks-stats-text').textContent =
-                `Showing ${total} bookmark${total !== 1 ? 's' : ''} from ${listCount} list${listCount !== 1 ? 's' : ''}`;
+                `${total} bookmark${total !== 1 ? 's' : ''}`;
         }
     }
 
@@ -1948,9 +2071,12 @@
             document.body.appendChild(dropdown);
 
             const closeDropdown = (e) => {
-                if (!dropdown.contains(e.target) && e.target !== targetElement) {
-                    dropdown.remove();
-                    document.removeEventListener('click', closeDropdown);
+                // FIXED: Check if target is valid before using it
+                if (e && e.target) {
+                    if (!dropdown.contains(e.target) && e.target !== targetElement) {
+                        dropdown.remove();
+                        document.removeEventListener('click', closeDropdown);
+                    }
                 }
             };
             setTimeout(() => document.addEventListener('click', closeDropdown), 0);
@@ -1960,9 +2086,17 @@
     function openBookmarksModal() {
         if (modalOpen) return;
         modalOpen = true;
+        Storage.setModalOpen(true);
 
         const overlay = document.createElement('div');
         overlay.className = 'bookmarks-modal-overlay';
+
+        // Fixed: Use proper event handling for overlay click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeBookmarksModal();
+            }
+        });
 
         const modal = document.createElement('div');
         modal.className = 'bookmarks-modal';
@@ -2002,7 +2136,7 @@
         syncStatus.className = 'bookmarks-sync-status';
         const token = Storage.getSyncToken();
         const gistId = Storage.getGistId();
-        syncStatus.textContent = (token && gistId) ? '✓ Synced with GitHub' : 'Configure sync';
+        syncStatus.textContent = (token && gistId) ? '✓ Synced' : 'Configure sync';
 
         const configBtn = document.createElement('button');
         configBtn.className = 'bookmarks-sync-btn';
@@ -2014,15 +2148,13 @@
         helpIcon.innerHTML = `
             ${ICONS.questionMark}
             <div class="bookmarks-sync-help-tooltip">
-                <h4>GitHub Sync Setup</h4>
-                <p><strong>Setup:</strong></p>
+                <p><strong>Instructions:</strong></p>
                 <ol>
                     <li>Click "Configure"</li>
-                    <li>Create a token at <code>github.com/settings/tokens/new</code></li>
+                    <li>Create token at <code>github.com/settings/tokens/new</code></li>
                     <li>Grant only the <strong>gist</strong> scope</li>
                     <li>Paste the token when prompted</li>
                 </ol>
-                <p><strong>How it works:</strong> All bookmarks are stored in a private GitHub Gist. Changes sync automatically across all browsers where this script is installed with the same token.</p>
             </div>
         `;
 
@@ -2037,7 +2169,7 @@
         modal.appendChild(stats);
         overlay.appendChild(modal);
 
-        renderBookmarksModal(content, filterContainer, stats);
+        renderBookmarksModal(content, filterContainer, stats, 'All'); // Default to "All" filter
 
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
@@ -2063,7 +2195,7 @@
             const syncStatus = document.querySelector('.bookmarks-sync-status');
             if (syncStatus) {
                 const gistId = Storage.getGistId();
-                syncStatus.textContent = gistId ? '✓ Synced with GitHub' : '✓ Token configured';
+                syncStatus.textContent = gistId ? '✓ Synced' : '✓ Token configured';
             }
         }
     }
@@ -2074,6 +2206,7 @@
             document.removeEventListener('keydown', modal.escapeHandler);
             modal.remove();
             modalOpen = false;
+            Storage.setModalOpen(false);
             document.body.style.overflow = '';
         }
     }
@@ -2219,7 +2352,7 @@
                 const stats = modal.querySelector('.bookmarks-stats');
                 if (content && filter && stats) {
                     const activeFilter = filter.querySelector('.bookmarks-filter-btn.active');
-                    await renderBookmarksModal(content, filter, stats, activeFilter?.textContent || DEFAULT_LIST);
+                    await renderBookmarksModal(content, filter, stats, activeFilter?.textContent || 'All');
                 }
             }
         }
@@ -2227,6 +2360,13 @@
 
     async function init() {
         injectStyles();
+
+        // Check if modal was open before page refresh
+        if (Storage.getModalOpen()) {
+            setTimeout(() => {
+                openBookmarksModal();
+            }, 1000); // Delay to ensure page is fully loaded
+        }
 
         if (Repo.isRepoPage()) {
             setTimeout(addBookmarkButton, 500);
