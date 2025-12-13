@@ -283,6 +283,8 @@
                 if (data.bookmarks[listName].length === 0) {
                     delete data.bookmarks[listName];
                 }
+                // Invalidate cache before saving to ensure fresh data on next read
+                this.invalidateCache();
                 await this.saveToGist(data);
                 return true;
             }
@@ -1787,203 +1789,217 @@
     // BOOKMARKS VIEWER MODAL - UPDATED WITH PROPER FILTER LAYOUT
     // ============================================================================
 
-    async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
-        contentEl.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
-        filterEl.innerHTML = '';
+async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
+    contentEl.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
+    filterEl.innerHTML = '';
 
-        const bookmarks = await Storage.getBookmarks();
+    // Force cache invalidation to ensure fresh data
+    Storage.invalidateCache();
+    const bookmarks = await Storage.getBookmarks();
 
-        // Create container for left side (filter buttons)
-        const filterLeft = document.createElement('div');
-        filterLeft.className = 'bookmarks-filter-left';
+    // Create container for left side (filter buttons)
+    const filterLeft = document.createElement('div');
+    filterLeft.className = 'bookmarks-filter-left';
 
-        // Create container for right side (Manage lists button)
-        const filterRight = document.createElement('div');
-        filterRight.className = 'bookmarks-filter-right';
+    // Create container for right side (Manage lists button)
+    const filterRight = document.createElement('div');
+    filterRight.className = 'bookmarks-filter-right';
 
-        // Add "All" button (only in modal) - LEFT SIDE
-        const allBtn = document.createElement('button');
-        allBtn.className = `bookmarks-filter-btn ${'All' === activeFilter ? 'active' : ''}`;
-        allBtn.textContent = 'All';
-        allBtn.dataset.listName = 'All';
-        allBtn.addEventListener('click', () => {
-            renderBookmarksModal(contentEl, filterEl, statsEl, 'All');
+    // Add "All" button (only in modal) - LEFT SIDE
+    const allBtn = document.createElement('button');
+    allBtn.className = `bookmarks-filter-btn ${'All' === activeFilter ? 'active' : ''}`;
+    allBtn.textContent = 'All';
+    allBtn.dataset.listName = 'All';
+    allBtn.addEventListener('click', () => {
+        renderBookmarksModal(contentEl, filterEl, statsEl, 'All');
+    });
+    filterLeft.appendChild(allBtn);
+
+    // Add first separator after "All"
+    const separator1 = document.createElement('div');
+    separator1.className = 'bookmarks-filter-separator';
+    filterLeft.appendChild(separator1);
+
+    // Add General button
+    const generalBtn = document.createElement('button');
+    generalBtn.className = `bookmarks-filter-btn ${DEFAULT_LIST === activeFilter ? 'active' : ''}`;
+    generalBtn.textContent = DEFAULT_LIST;
+    generalBtn.dataset.listName = DEFAULT_LIST;
+    generalBtn.addEventListener('click', () => {
+        renderBookmarksModal(contentEl, filterEl, statsEl, DEFAULT_LIST);
+    });
+    filterLeft.appendChild(generalBtn);
+
+    // Add second separator after General (before custom lists)
+    const separator2 = document.createElement('div');
+    separator2.className = 'bookmarks-filter-separator';
+    filterLeft.appendChild(separator2);
+
+    // Add other list filter buttons
+    const lists = await Storage.getLists();
+    const otherLists = lists.filter(listName => listName !== DEFAULT_LIST);
+    otherLists.forEach((listName) => {
+        const btn = document.createElement('button');
+        btn.className = `bookmarks-filter-btn ${listName === activeFilter ? 'active' : ''}`;
+        btn.textContent = listName;
+        btn.dataset.listName = listName;
+
+        btn.addEventListener('click', () => {
+            renderBookmarksModal(contentEl, filterEl, statsEl, listName);
         });
-        filterLeft.appendChild(allBtn);
 
-        // Add first separator after "All"
-        const separator1 = document.createElement('div');
-        separator1.className = 'bookmarks-filter-separator';
-        filterLeft.appendChild(separator1);
+        filterLeft.appendChild(btn);
+    });
 
-        // Add General button
-        const generalBtn = document.createElement('button');
-        generalBtn.className = `bookmarks-filter-btn ${DEFAULT_LIST === activeFilter ? 'active' : ''}`;
-        generalBtn.textContent = DEFAULT_LIST;
-        generalBtn.dataset.listName = DEFAULT_LIST;
-        generalBtn.addEventListener('click', () => {
-            renderBookmarksModal(contentEl, filterEl, statsEl, DEFAULT_LIST);
-        });
-        filterLeft.appendChild(generalBtn);
+    // Add "Manage lists" button to the RIGHT SIDE
+    const settingsBtn = document.createElement('button');
+    settingsBtn.className = 'bookmarks-manage-btn';
+    settingsBtn.innerHTML = `${ICONS.gear}`;
+    settingsBtn.title = 'Manage Lists';
+    settingsBtn.addEventListener('click', openListManagementModal);
+    filterRight.appendChild(settingsBtn);
 
-        // Add second separator after General (before custom lists)
-        const separator2 = document.createElement('div');
-        separator2.className = 'bookmarks-filter-separator';
-        filterLeft.appendChild(separator2);
+    // Add mobile separator after custom lists
+    if (window.innerWidth <= 768) {
+        const mobileSeparator = document.createElement('div');
+        mobileSeparator.className = 'bookmarks-filter-separator-mobile';
+        filterLeft.appendChild(mobileSeparator);
+    }
 
-        // Add other list filter buttons
-        const lists = await Storage.getLists();
-        const otherLists = lists.filter(listName => listName !== DEFAULT_LIST);
-        otherLists.forEach((listName) => {
-            const btn = document.createElement('button');
-            btn.className = `bookmarks-filter-btn ${listName === activeFilter ? 'active' : ''}`;
-            btn.textContent = listName;
-            btn.dataset.listName = listName;
+    // Append both sides to the filter container
+    filterEl.appendChild(filterLeft);
+    filterEl.appendChild(filterRight);
 
-            btn.addEventListener('click', () => {
-                renderBookmarksModal(contentEl, filterEl, statsEl, listName);
+    let displayBookmarks = [];
+    if (activeFilter === 'All') {
+        // Show all bookmarks from all lists
+        Object.entries(bookmarks).forEach(([listName, items]) => {
+            items.forEach(item => {
+                const existing = displayBookmarks.find(b => b.repo === item.repo);
+                if (existing) {
+                    existing.lists.push(listName);
+                } else {
+                    displayBookmarks.push({ ...item, lists: [listName] });
+                }
             });
-
-            filterLeft.appendChild(btn);
         });
-
-        // Add "Manage lists" button to the RIGHT SIDE
-        const settingsBtn = document.createElement('button');
-        settingsBtn.className = 'bookmarks-manage-btn';
-        settingsBtn.innerHTML = `${ICONS.gear}`;
-        settingsBtn.title = 'Manage Lists';
-        settingsBtn.addEventListener('click', openListManagementModal);
-        filterRight.appendChild(settingsBtn);
-
-        // Add mobile separator after custom lists
-        if (window.innerWidth <= 768) {
-            const mobileSeparator = document.createElement('div');
-            mobileSeparator.className = 'bookmarks-filter-separator-mobile';
-            filterLeft.appendChild(mobileSeparator);
-        }
-
-        // Append both sides to the filter container
-        filterEl.appendChild(filterLeft);
-        filterEl.appendChild(filterRight);
-
-        let displayBookmarks = [];
-        if (activeFilter === 'All') {
-            // Show all bookmarks from all lists
-            Object.entries(bookmarks).forEach(([listName, items]) => {
-                items.forEach(item => {
-                    const existing = displayBookmarks.find(b => b.repo === item.repo);
-                    if (existing) {
-                        existing.lists.push(listName);
-                    } else {
-                        displayBookmarks.push({ ...item, lists: [listName] });
-                    }
-                });
-            });
-        } else if (activeFilter === DEFAULT_LIST) {
-            // Show only bookmarks in General list
-            if (bookmarks[DEFAULT_LIST]) {
-                displayBookmarks = bookmarks[DEFAULT_LIST].map(item => ({
-                    ...item,
-                    lists: [DEFAULT_LIST]
-                }));
-            }
-        } else if (bookmarks[activeFilter]) {
-            // Show bookmarks from specific list
-            displayBookmarks = bookmarks[activeFilter].map(item => ({
+    } else if (activeFilter === DEFAULT_LIST) {
+        // Show only bookmarks in General list
+        if (bookmarks[DEFAULT_LIST]) {
+            displayBookmarks = bookmarks[DEFAULT_LIST].map(item => ({
                 ...item,
-                lists: [activeFilter]
+                lists: [DEFAULT_LIST]
             }));
         }
+    } else if (bookmarks[activeFilter]) {
+        // Show bookmarks from specific list
+        displayBookmarks = bookmarks[activeFilter].map(item => ({
+            ...item,
+            lists: [activeFilter]
+        }));
+    }
 
-        contentEl.innerHTML = '';
+    contentEl.innerHTML = '';
 
-        if (displayBookmarks.length === 0) {
-            contentEl.innerHTML = `
-                <div class="bookmarks-empty">
-                    <div class="bookmarks-empty-icon">${ICONS.bookmarkHollow}</div>
-                    <div class="bookmarks-empty-title">No bookmarks yet</div>
-                    <div class="bookmarks-empty-text">Start bookmarking repositories to see them here!</div>
-                </div>
-            `;
-            statsEl.querySelector('.bookmarks-stats-text').textContent = 'No bookmarks';
-        } else {
-            const listEl = document.createElement('div');
-            listEl.className = 'bookmarks-list';
+    if (displayBookmarks.length === 0) {
+        contentEl.innerHTML = `
+            <div class="bookmarks-empty">
+                <div class="bookmarks-empty-icon">${ICONS.bookmarkHollow}</div>
+                <div class="bookmarks-empty-title">No bookmarks yet</div>
+                <div class="bookmarks-empty-text">Start bookmarking repositories to see them here!</div>
+            </div>
+        `;
+        statsEl.querySelector('.bookmarks-stats-text').textContent = 'No bookmarks';
+    } else {
+        const listEl = document.createElement('div');
+        listEl.className = 'bookmarks-list';
 
-            for (const bookmark of displayBookmarks) {
-                const item = document.createElement('div');
-                item.className = 'bookmark-item';
+        for (const bookmark of displayBookmarks) {
+            const item = document.createElement('div');
+            item.className = 'bookmark-item';
+            item.dataset.repo = bookmark.repo; // Add data attribute for easier targeting
 
-                const allLists = await Storage.getLists();
-                const currentLists = [];
-                for (const listName of allLists) {
-                    if (await Storage.isBookmarkedInList(bookmark.repo, listName)) {
-                        currentLists.push(listName);
-                    }
+            const allLists = await Storage.getLists();
+            const currentLists = [];
+            for (const listName of allLists) {
+                if (await Storage.isBookmarkedInList(bookmark.repo, listName)) {
+                    currentLists.push(listName);
                 }
-
-                item.innerHTML = `
-                    <div class="bookmark-icon-container">${ICONS.bookmarkHollow}</div>
-                    <div class="bookmark-info">
-                        <div class="bookmark-title">
-                            <a href="${bookmark.repoUrl}" target="_blank" rel="noopener noreferrer">${bookmark.repo}</a>
-                        </div>
-                        <div class="bookmark-description">${bookmark.repoUrl}</div>
-                    </div>
-                    <div class="bookmark-right-group">
-                        <div class="bookmark-lists" data-repo="${bookmark.repo}">
-                            ${currentLists.map(l =>
-                                `<span class="bookmark-list-tag ${l === DEFAULT_LIST ? 'default-list' : ''}" data-list="${l}">${l}</span>`
-                            ).join('')}
-                        </div>
-                        <button class="bookmark-action-btn danger" title="Remove bookmark" data-repo="${bookmark.repo}">
-                            ${ICONS.trash}
-                        </button>
-                    </div>
-                `;
-
-                item.addEventListener('click', (e) => {
-                    // FIXED: Check if target is valid before calling closest
-                    if (e && e.target && typeof e.target.closest === 'function') {
-                        if (!e.target.closest('.bookmark-right-group')) {
-                            window.open(bookmark.repoUrl, '_blank');
-                        }
-                    }
-                });
-
-                const listTags = item.querySelectorAll('.bookmark-list-tag');
-                listTags.forEach(tag => {
-                    tag.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showListManagementDropdown(e.target, bookmark.repo, currentLists);
-                    });
-                });
-
-                const removeBtn = item.querySelector('.bookmark-action-btn.danger');
-                removeBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const repo = removeBtn.dataset.repo;
-
-                    if (confirm(`Remove "${repo}" from all lists?`)) {
-                        for (const list of currentLists) {
-                            await Storage.removeBookmark(repo, list);
-                        }
-                        await renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
-                    }
-                });
-
-                listEl.appendChild(item);
             }
 
-            contentEl.appendChild(listEl);
+            item.innerHTML = `
+                <div class="bookmark-icon-container">${ICONS.bookmarkHollow}</div>
+                <div class="bookmark-info">
+                    <div class="bookmark-title">
+                        <a href="${bookmark.repoUrl}" target="_blank" rel="noopener noreferrer">${bookmark.repo}</a>
+                    </div>
+                    <div class="bookmark-description">${bookmark.repoUrl}</div>
+                </div>
+                <div class="bookmark-right-group">
+                    <div class="bookmark-lists" data-repo="${bookmark.repo}">
+                        ${currentLists.map(l =>
+                            `<span class="bookmark-list-tag ${l === DEFAULT_LIST ? 'default-list' : ''}" data-list="${l}">${l}</span>`
+                        ).join('')}
+                    </div>
+                    <button class="bookmark-action-btn danger" title="Remove bookmark" data-repo="${bookmark.repo}">
+                        ${ICONS.trash}
+                    </button>
+                </div>
+            `;
 
-            const total = displayBookmarks.length;
-            const listCount = Object.keys(bookmarks).length;
-            const filterText = activeFilter === 'All' ? 'all lists' : `"${activeFilter}" list`;
-            statsEl.querySelector('.bookmarks-stats-text').textContent =
-                `${total} bookmark${total !== 1 ? 's' : ''}`;
+            item.addEventListener('click', (e) => {
+                // FIXED: Check if target is valid before calling closest
+                if (e && e.target && typeof e.target.closest === 'function') {
+                    if (!e.target.closest('.bookmark-right-group')) {
+                        window.open(bookmark.repoUrl, '_blank');
+                    }
+                }
+            });
+
+            const listTags = item.querySelectorAll('.bookmark-list-tag');
+            listTags.forEach(tag => {
+                tag.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showListManagementDropdown(e.target, bookmark.repo, currentLists);
+                });
+            });
+
+            const removeBtn = item.querySelector('.bookmark-action-btn.danger');
+            removeBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const repo = removeBtn.dataset.repo;
+
+                if (confirm(`Remove "${repo}" from all lists?`)) {
+                    // Immediately hide the item with a fade-out animation
+                    const bookmarkItem = removeBtn.closest('.bookmark-item');
+                    if (bookmarkItem) {
+                        bookmarkItem.style.opacity = '0';
+                        bookmarkItem.style.transition = 'opacity 0.2s ease-out';
+                        bookmarkItem.style.pointerEvents = 'none';
+                    }
+
+                    // Remove from all lists
+                    for (const list of currentLists) {
+                        await Storage.removeBookmark(repo, list);
+                    }
+
+                    // Wait a brief moment for the fade animation, then re-render
+                    setTimeout(async () => {
+                        await renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
+                    }, 200);
+                }
+            });
+
+            listEl.appendChild(item);
         }
+
+        contentEl.appendChild(listEl);
+
+        const total = displayBookmarks.length;
+        statsEl.querySelector('.bookmarks-stats-text').textContent =
+            `${total} bookmark${total !== 1 ? 's' : ''}`;
     }
+}
 
     function showListManagementDropdown(targetElement, repo, currentLists) {
         const existing = document.querySelector('.bookmark-list-dropdown');
