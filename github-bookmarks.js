@@ -294,6 +294,12 @@
         async addList(listName) {
             const data = await this.getData();
             if (!data.lists.includes(listName)) {
+                // Count custom lists (excluding General)
+                const customLists = data.lists.filter(l => l !== DEFAULT_LIST);
+                if (customLists.length >= 7) {
+                    alert('Maximum of 7 custom lists reached. Please delete a list before creating a new one.');
+                    return false;
+                }
                 data.lists.push(listName);
                 if (!data.listOrder.includes(listName)) {
                     data.listOrder.push(listName);
@@ -1983,10 +1989,9 @@ async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter =
                         await Storage.removeBookmark(repo, list);
                     }
 
-                    // Wait a brief moment for the fade animation, then re-render
-                    setTimeout(async () => {
-                        await renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
-                    }, 200);
+                    // Invalidate cache and re-render immediately
+                    Storage.invalidateCache();
+                    await renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
                 }
             });
 
