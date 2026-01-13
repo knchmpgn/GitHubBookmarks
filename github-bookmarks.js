@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      5.0.4
+// @version      5.0.6
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -30,7 +30,7 @@
     const CACHE_DURATION = 30000; // 30 seconds
     const GIST_FILENAME = 'github-bookmarks.json';
 
-    // SVG Icons - Updated tag icon to be linear
+    // SVG Icons
     const ICONS = {
         bookmarkHollow: `<svg class="octicon octicon-bookmark" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 2.75C3 1.784 3.784 1 4.75 1h6.5c.966 0 1.75.784 1.75 1.75v11.5a.75.75 0 0 1-1.227.579L8 11.722l-3.773 3.107A.75.75 0 0 1 3 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.91l3.023-2.489a.75.75 0 0 1 .954 0l3.023 2.49V2.75a.25.25 0 0 0-.25-.25Z"></path></svg>`,
         bookmarkFilled: `<svg class="octicon octicon-bookmark-fill" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 2.75C3 1.784 3.784 1 4.75 1h6.5c.966 0 1.75.784 1.75 1.75v11.5a.75.75 0 0 1-1.227.579L8 11.722l-3.773 3.107A.75.75 0 0 1 3 14.25Z"></path></svg>`,
@@ -74,26 +74,56 @@
             localStorage.setItem(STORAGE_KEYS.SYNC_GIST_ID, id);
         },
 
-        // Check if cache is still valid
         isCacheValid() {
             return this.cache && (Date.now() - this.cacheTimestamp < CACHE_DURATION);
         },
 
-        // Invalidate cache
         invalidateCache() {
             this.cache = null;
             this.cacheTimestamp = 0;
         },
 
-        // Fetch data from Gist
+        // UPDATED: Robust search that handles pagination (scans ALL gists, not just first 100)
+        async findExistingGist(token) {
+            try {
+                let page = 1;
+                let foundGistId = null;
+
+                while (!foundGistId) {
+                    const response = await fetch(`https://api.github.com/gists?per_page=100&page=${page}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/vnd.github+json',
+                            'X-GitHub-Api-Version': '2022-11-28'
+                        }
+                    });
+
+                    if (!response.ok) break;
+
+                    const gists = await response.json();
+                    if (gists.length === 0) break; // No more gists
+
+                    const found = gists.find(gist => gist.files && gist.files[GIST_FILENAME]);
+                    if (found) {
+                        foundGistId = found.id;
+                    } else {
+                        page++;
+                    }
+                }
+
+                return foundGistId;
+            } catch (error) {
+                console.error('Error searching for existing gist:', error);
+                return null;
+            }
+        },
+
         async fetchFromGist(silent = false) {
             const token = this.getSyncToken();
             const gistId = this.getGistId();
 
             if (!token || !gistId) {
-                if (!silent) {
-                    console.log('No token or gist ID configured');
-                }
+                if (!silent) console.log('No token or gist ID configured');
                 return null;
             }
 
@@ -106,16 +136,12 @@
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const gist = await response.json();
                 const content = gist.files[GIST_FILENAME]?.content;
 
-                if (!content) {
-                    throw new Error('Bookmark data not found in gist');
-                }
+                if (!content) throw new Error('Bookmark data not found in gist');
 
                 const data = JSON.parse(content);
                 this.cache = data;
@@ -123,14 +149,12 @@
                 return data;
             } catch (error) {
                 console.error('Failed to fetch from Gist:', error);
-                if (!silent) {
-                    alert(`Failed to load bookmarks: ${error.message}`);
-                }
+                if (!silent) alert(`Failed to load bookmarks: ${error.message}`);
                 return null;
             }
         },
 
-        // Save data to Gist
+        // UPDATED: Auto-discovery before creation to strictly prevent duplicates
         async saveToGist(data, silent = true) {
             if (syncInProgress) {
                 console.log('Sync already in progress');
@@ -138,7 +162,6 @@
             }
 
             syncInProgress = true;
-
             const token = this.getSyncToken();
             if (!token) {
                 syncInProgress = false;
@@ -146,7 +169,19 @@
                 return { success: false, error: 'No token configured' };
             }
 
-            const gistId = this.getGistId();
+            // SAFETY CHECK: If we have a token but no Gist ID, try to find one first.
+            // This prevents creating a duplicate if the initial setup search failed or was skipped.
+            let gistId = this.getGistId();
+            if (!gistId) {
+                console.log('No Gist ID linked. Searching for existing backup before creating new...');
+                const existingId = await this.findExistingGist(token);
+                if (existingId) {
+                    console.log('Found orphaned backup. Relinking...');
+                    gistId = existingId;
+                    this.setGistId(existingId);
+                }
+            }
+
             const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
 
             const payload = {
@@ -180,7 +215,12 @@
                 }
 
                 const result = await response.json();
-                this.setGistId(result.id);
+
+                // If we just created a new Gist (POST), save the new ID
+                if (!gistId) {
+                    this.setGistId(result.id);
+                }
+
                 this.cache = payload;
                 this.cacheTimestamp = Date.now();
                 this.dispatchUpdate();
@@ -199,14 +239,11 @@
 
         // Get data with caching
         async getData() {
-            if (this.isCacheValid()) {
-                return this.cache;
-            }
+            if (this.isCacheValid()) return this.cache;
 
             const data = await this.fetchFromGist(true);
             if (data) return data;
 
-            // Return default structure if no data exists
             return {
                 bookmarks: {},
                 lists: [DEFAULT_LIST],
@@ -214,18 +251,15 @@
             };
         },
 
-        // Get bookmarks
         async getBookmarks() {
             const data = await this.getData();
             return data.bookmarks || {};
         },
 
-        // Get lists - exclude DEFAULT_LIST from visible lists
         async getLists() {
             const data = await this.getData();
             const lists = data.lists || [DEFAULT_LIST];
             const order = data.listOrder || [];
-
             const generalList = lists.find(l => l === DEFAULT_LIST);
             const otherLists = lists.filter(l => l !== DEFAULT_LIST).sort((a, b) => {
                 const indexA = order.indexOf(a);
@@ -235,16 +269,13 @@
                 if (indexB === -1) return -1;
                 return indexA - indexB;
             });
-
             return generalList ? [generalList, ...otherLists] : otherLists;
         },
 
-        // Get visible lists (excluding DEFAULT_LIST)
         async getVisibleLists() {
             const data = await this.getData();
             const lists = data.lists || [DEFAULT_LIST];
             const order = data.listOrder || [];
-
             const otherLists = lists.filter(l => l !== DEFAULT_LIST).sort((a, b) => {
                 const indexA = order.indexOf(a);
                 const indexB = order.indexOf(b);
@@ -253,7 +284,6 @@
                 if (indexB === -1) return -1;
                 return indexA - indexB;
             });
-
             return otherLists;
         },
 
@@ -286,7 +316,6 @@
         async addBookmark(repo, repoUrl, listName) {
             const data = await this.getData();
             if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
-
             if (!data.bookmarks[listName].some(b => b.repo === repo)) {
                 data.bookmarks[listName].push({ repo, repoUrl });
                 await this.saveToGist(data);
@@ -302,7 +331,6 @@
                 if (data.bookmarks[listName].length === 0) {
                     delete data.bookmarks[listName];
                 }
-                // Invalidate cache before saving to ensure fresh data on next read
                 this.invalidateCache();
                 await this.saveToGist(data);
                 return true;
@@ -313,7 +341,6 @@
         async addList(listName) {
             const data = await this.getData();
             if (!data.lists.includes(listName)) {
-                // Count custom lists (excluding General)
                 const customLists = data.lists.filter(l => l !== DEFAULT_LIST);
                 if (customLists.length >= 7) {
                     alert('Maximum of 7 custom lists reached. Please delete a list before creating a new one.');
@@ -334,23 +361,18 @@
                 alert('Cannot rename the default list.');
                 return false;
             }
-
             const data = await this.getData();
             if (!data.lists.includes(oldName)) return false;
             if (data.lists.includes(newName)) {
                 alert('A list with that name already exists.');
                 return false;
             }
-
             data.lists = data.lists.map(l => l === oldName ? newName : l);
-
             if (data.bookmarks[oldName]) {
                 data.bookmarks[newName] = data.bookmarks[oldName];
                 delete data.bookmarks[oldName];
             }
-
             data.listOrder = data.listOrder.map(l => l === oldName ? newName : l);
-
             await this.saveToGist(data);
             return true;
         },
@@ -360,16 +382,13 @@
                 alert('Cannot delete the default list.');
                 return false;
             }
-
             const data = await this.getData();
             if (!data.lists.includes(listName)) return false;
-
             data.lists = data.lists.filter(l => l !== listName);
             if (data.bookmarks[listName]) {
                 delete data.bookmarks[listName];
             }
             data.listOrder = data.listOrder.filter(l => l !== listName);
-
             await this.saveToGist(data);
             return true;
         },
@@ -378,12 +397,43 @@
             window.dispatchEvent(new CustomEvent('ghBookmarksUpdated'));
         },
 
-        async initialize() {
-            // Try to load from Gist on startup
-            await this.fetchFromGist(true);
+        async mergeData(localData, remoteData) {
+            if (!remoteData) return localData;
+
+            const merged = {
+                bookmarks: { ...remoteData.bookmarks },
+                lists: [...new Set([...(remoteData.lists || []), ...(localData.lists || [])])],
+                listOrder: remoteData.listOrder || localData.listOrder || []
+            };
+
+            // Merge bookmarks from local into remote
+            for (const [listName, repos] of Object.entries(localData.bookmarks || {})) {
+                if (!merged.bookmarks[listName]) {
+                    merged.bookmarks[listName] = [];
+                }
+                repos.forEach(localRepo => {
+                    if (!merged.bookmarks[listName].some(r => r.repo === localRepo.repo)) {
+                        merged.bookmarks[listName].push(localRepo);
+                    }
+                });
+            }
+            return merged;
         },
 
-        // Modal state persistence
+        async initialize() {
+            const localData = await this.getData(); // Get what's currently in cache/local
+            const remoteData = await this.fetchFromGist(true);
+
+            if (remoteData) {
+                console.log('GitHub Bookmarks: Syncing and merging data...');
+                const mergedData = await this.mergeData(localData, remoteData);
+                this.cache = mergedData;
+                this.cacheTimestamp = Date.now();
+                // Save the merged result back to Gist to ensure they are in sync
+                await this.saveToGist(mergedData, true);
+            }
+        },
+
         setModalOpen(isOpen) {
             localStorage.setItem(STORAGE_KEYS.MODAL_OPEN, isOpen ? 'true' : 'false');
         },
@@ -416,7 +466,7 @@
     };
 
     // ============================================================================
-    // STYLES (updated for proper tag icon styling)
+    // STYLES
     // ============================================================================
 
     function injectStyles() {
@@ -956,6 +1006,27 @@
                 stroke-width: 1.5;
             }
 
+            /* Updated CSS for Modal Action Buttons */
+            .gh-bookmark-action-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                padding: 4px !important;
+                width: 28px !important;  /* Ensure fixed square size */
+                height: 28px !important;
+                flex-shrink: 0 !important; /* Prevents warping/shrinking */
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 6px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                cursor: pointer;
+            }
+
+            .gh-bookmark-action-btn:hover {
+                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                color: var(--fgColor-default, var(--color-fg-default));
+            }
+
             .bookmark-action-btn {
                 display: flex;
                 align-items: center;
@@ -1290,7 +1361,7 @@
     }
 
     // ============================================================================
-    // BOOKMARK BUTTON (REPO PAGES) - FIXED TOGGLE FUNCTIONALITY
+    // BOOKMARK BUTTON (REPO PAGES)
     // ============================================================================
 
     function createSelectMenuDropdown(repo, repoUrl) {
@@ -1306,7 +1377,6 @@
                 <span class="SelectMenu-title">Lists</span>
                 <button class="SelectMenu-closeButton" type="button" aria-label="Close menu">${ICONS.close}</button>
             `;
-
             header.querySelector('.SelectMenu-closeButton').addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1353,6 +1423,7 @@
 
             const footer = document.createElement('div');
             footer.className = 'SelectMenu-footer';
+
             const addButton = document.createElement('button');
             addButton.className = 'SelectMenu-item SelectMenu-item--add';
             addButton.innerHTML = `
@@ -1394,7 +1465,8 @@
         // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            svg.outerHTML = bookmarked ?
+                ICONS.bookmarkFilled : ICONS.bookmarkHollow;
             const newSvg = mainButton.querySelector('svg');
             if (newSvg && bookmarked) {
                 newSvg.style.fill = '#da3633';
@@ -1404,7 +1476,8 @@
         // Update text
         const textSpan = mainButton.querySelector('span[data-bookmark-text="true"]');
         if (textSpan) {
-            textSpan.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+            textSpan.textContent = bookmarked ?
+                'Bookmarked' : 'Bookmark';
         }
 
         // Update counter
@@ -1467,7 +1540,8 @@
         // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            svg.outerHTML = bookmarked ?
+                ICONS.bookmarkFilled : ICONS.bookmarkHollow;
             if (bookmarked) {
                 const newSvg = mainButton.querySelector('svg');
                 if (newSvg) newSvg.style.fill = '#da3633';
@@ -1480,7 +1554,8 @@
         for (const span of spans) {
             const text = span.textContent.trim();
             if ((text === 'Star' || text === 'Starred' || text === 'Unstar') && !span.children.length) {
-                span.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+                span.textContent = bookmarked ?
+                    'Bookmarked' : 'Bookmark';
                 span.setAttribute('data-bookmark-text', 'true');
                 textFound = true;
                 break;
@@ -1490,7 +1565,8 @@
         if (!textFound) {
             const iconSpan = mainButton.querySelector('svg')?.parentElement;
             if (iconSpan?.nextElementSibling?.tagName === 'SPAN') {
-                iconSpan.nextElementSibling.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
+                iconSpan.nextElementSibling.textContent = bookmarked ?
+                    'Bookmarked' : 'Bookmark';
                 iconSpan.nextElementSibling.setAttribute('data-bookmark-text', 'true');
             }
         }
@@ -1555,7 +1631,6 @@
 
         const details = document.createElement('details');
         details.className = 'details-reset details-overlay d-inline-block position-relative gh-bookmark-details';
-
         const menuContainer = document.createElement('details-menu');
         menuContainer.className = 'SelectMenu';
         menuContainer.setAttribute('role', 'menu');
@@ -1580,7 +1655,7 @@
     }
 
     // ============================================================================
-    // BOOKMARKS VIEWER MODAL - UPDATED WITH FIXED TAG ICON
+    // BOOKMARKS VIEWER MODAL
     // ============================================================================
 
     async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
@@ -1678,7 +1753,6 @@
         }
 
         contentEl.innerHTML = '';
-
         if (displayBookmarks.length === 0) {
             contentEl.innerHTML = `
                 <div class="bookmarks-empty">
@@ -1718,7 +1792,8 @@
                         </div>
                         <div class="bookmark-description">${bookmark.repoUrl}</div>
                     </div>
-                    ${showTagIcon ? `
+                    ${showTagIcon ?
+                        `
                         <div class="bookmark-right-container">
                             <button class="bookmark-list-tag-icon" title="Manage lists" data-repo="${bookmark.repo}">
                                 ${ICONS.tag}
@@ -1795,18 +1870,6 @@
         }
     }
 
-    // ============================================================================
-    // THE REST OF THE FUNCTIONS (unchanged from previous working version)
-    // ============================================================================
-
-    // [All other functions remain exactly as they were in your previous working script]
-    // Including: showListManagementDropdown, openListManagementModal, renderListManagementContent,
-    // closeListManagementModal, openBookmarksModal, configureSyncToken, closeBookmarksModal,
-    // addBookmarksToProfileMenu, addBookmarksTabToProfilePage, event listeners, init,
-    // watchForProfileMenu, start]
-
-    // Let me just show the key functions that need to be kept from the previous version:
-
     function showListManagementDropdown(targetElement, repo, currentLists) {
         const existing = document.querySelector('.bookmark-list-dropdown');
         if (existing) {
@@ -1846,6 +1909,7 @@
                 const isInList = listName === DEFAULT_LIST ?
                     await Storage.isBookmarkedInList(repo, DEFAULT_LIST) :
                     currentLists.includes(listName);
+
                 checkbox.checked = isInList;
 
                 // For DEFAULT_LIST, show it but with lock icon
@@ -1886,7 +1950,6 @@
                                 tagIcon.title = 'Manage lists';
                                 tagIcon.setAttribute('data-repo', repo);
                                 tagIcon.innerHTML = ICONS.tag;
-
                                 tagIcon.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     showListManagementDropdown(tagIcon, repo, newLists);
@@ -1985,7 +2048,6 @@
                 }
             }
         });
-
         footer.appendChild(createBtn);
 
         modal.appendChild(header);
@@ -2109,7 +2171,6 @@
 
         const overlay = document.createElement('div');
         overlay.className = 'bookmarks-modal-overlay';
-
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 closeBookmarksModal();
@@ -2159,7 +2220,8 @@
         const configBtn = document.createElement('button');
         configBtn.className = 'bookmarks-sync-btn';
         configBtn.textContent = 'Configure';
-        configBtn.addEventListener('click', configureSyncToken);
+        // UPDATED: Pass syncStatus to configureSyncToken for visual feedback
+        configBtn.addEventListener('click', () => configureSyncToken(syncStatus));
 
         const helpIcon = document.createElement('div');
         helpIcon.className = 'bookmarks-sync-help';
@@ -2199,7 +2261,8 @@
         overlay.escapeHandler = escapeHandler;
     }
 
-    function configureSyncToken() {
+    // UPDATED: Now handles async backup discovery, status updates, and reload on success
+    async function configureSyncToken(statusElement) {
         const currentToken = Storage.getSyncToken();
         const message = currentToken
             ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
@@ -2208,12 +2271,36 @@
         const token = prompt(message, '');
 
         if (token !== null && token.trim() !== '') {
-            Storage.setSyncToken(token.trim());
-            alert('Sync token saved! Your bookmarks will now sync automatically with GitHub Gist.');
-            const syncStatus = document.querySelector('.bookmarks-sync-status');
-            if (syncStatus) {
-                const gistId = Storage.getGistId();
-                syncStatus.textContent = gistId ? '✓ Synced' : '✓ Token configured';
+            const cleanToken = token.trim();
+            Storage.setSyncToken(cleanToken);
+
+            // Update UI to show we are working
+            if (statusElement) statusElement.textContent = '⌛ Searching for backup...';
+
+            // Attempt to find existing gist (paginated search)
+            const existingGistId = await Storage.findExistingGist(cleanToken);
+
+            if (existingGistId) {
+                if (statusElement) statusElement.textContent = '♻️ Restoring...';
+
+                // Link to existing gist
+                Storage.setGistId(existingGistId);
+
+                // Fetch data to ensure it works
+                const data = await Storage.fetchFromGist();
+
+                if (data) {
+                    alert(`Found existing bookmark backup! \n\nRestoring ${Object.keys(data.bookmarks || {}).length} lists...`);
+                    // Reload to reflect changes across the UI
+                    window.location.reload();
+                } else {
+                     if (statusElement) statusElement.textContent = '⚠ Restore failed';
+                     alert('Found a backup Gist, but could not read the data. Check console for details.');
+                }
+            } else {
+                // No existing gist found
+                if (statusElement) statusElement.textContent = '✓ Token configured';
+                alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically the next time you bookmark a repository.');
             }
         }
     }
@@ -2309,6 +2396,7 @@
         const svg = bookmarksLink.querySelector('svg');
         if (svg) {
             svg.outerHTML = ICONS.bookmarkHollow;
+
             const newSvg = bookmarksLink.querySelector('svg');
             if (newSvg) {
                 newSvg.style.width = '16px';
