@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      5.0.6
+// @version      5.0.7
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -48,6 +48,7 @@
 
     let modalOpen = false;
     let syncInProgress = false;
+    let preventModalReopen = false; // NEW: Flag to prevent modal from reopening
 
     // ============================================================================
     // GIST-BASED STORAGE UTILITIES
@@ -1811,13 +1812,46 @@
                     `}
                 `;
 
+                // FIXED: Handle clicks on the bookmark item itself (not the action buttons)
                 item.addEventListener('click', (e) => {
                     if (e && e.target && typeof e.target.closest === 'function') {
-                        if (!e.target.closest('.bookmark-right-container')) {
-                            window.open(bookmark.repoUrl, '_blank');
+                        // Only handle clicks that aren't on action buttons
+                        if (!e.target.closest('.bookmark-right-container') &&
+                            !e.target.closest('a') &&
+                            !e.target.closest('.bookmark-list-tag-icon') &&
+                            !e.target.closest('.bookmark-action-btn')) {
+                            // Set flag to prevent modal from reopening
+                            preventModalReopen = true;
+                            // Close modal first, then open the link
+                            closeBookmarksModal();
+                            // Use a small timeout to ensure modal closes before navigation
+                            setTimeout(() => {
+                                window.open(bookmark.repoUrl, '_blank');
+                                // Reset flag after navigation
+                                setTimeout(() => {
+                                    preventModalReopen = false;
+                                }, 100);
+                            }, 10);
                         }
                     }
                 });
+
+                // Handle clicks on the actual link (for middle-click, ctrl+click, etc.)
+                const link = item.querySelector('.bookmark-title a');
+                if (link) {
+                    link.addEventListener('click', (e) => {
+                        // For regular clicks, let the browser handle it (opens in new tab due to target="_blank")
+                        // For middle-clicks and modifier keys, also close the modal
+                        if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+                            preventModalReopen = true;
+                            closeBookmarksModal();
+                            // Reset flag after navigation
+                            setTimeout(() => {
+                                preventModalReopen = false;
+                            }, 100);
+                        }
+                    });
+                }
 
                 const tagIcon = item.querySelector('.bookmark-list-tag-icon');
                 if (tagIcon) {
@@ -2165,6 +2199,12 @@
     }
 
     function openBookmarksModal() {
+        // Check if we should prevent modal from opening
+        if (preventModalReopen) {
+            preventModalReopen = false;
+            return;
+        }
+
         if (modalOpen) return;
         modalOpen = true;
         Storage.setModalOpen(true);
@@ -2446,7 +2486,7 @@
             }
         }
 
-        if (modalOpen) {
+        if (modalOpen && !preventModalReopen) {
             const modal = document.querySelector('.bookmarks-modal');
             if (modal) {
                 const content = modal.querySelector('.bookmarks-modal-content');
