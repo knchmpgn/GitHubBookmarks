@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      5.0.7
+// @version      5.0.8
 // @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -48,7 +48,10 @@
 
     let modalOpen = false;
     let syncInProgress = false;
-    let preventModalReopen = false; // NEW: Flag to prevent modal from reopening
+    let preventModalReopen = false; // Flag to prevent modal from reopening
+
+    // NEW: render token to prevent async re-render races (duplicate filter buttons)
+    let modalRenderToken = 0;
 
     // ============================================================================
     // GIST-BASED STORAGE UTILITIES
@@ -171,7 +174,6 @@
             }
 
             // SAFETY CHECK: If we have a token but no Gist ID, try to find one first.
-            // This prevents creating a duplicate if the initial setup search failed or was skipped.
             let gistId = this.getGistId();
             if (!gistId) {
                 console.log('No Gist ID linked. Searching for existing backup before creating new...');
@@ -1013,9 +1015,9 @@
                 align-items: center;
                 justify-content: center;
                 padding: 4px !important;
-                width: 28px !important;  /* Ensure fixed square size */
+                width: 28px !important;
                 height: 28px !important;
-                flex-shrink: 0 !important; /* Prevents warping/shrinking */
+                flex-shrink: 0 !important;
                 background: transparent;
                 border: 1px solid transparent;
                 border-radius: 6px;
@@ -1169,12 +1171,6 @@
                 background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
             }
 
-            .list-management-action-btn.danger:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-            }
-
             .list-management-action-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
@@ -1263,12 +1259,6 @@
 
             .bookmarks-sync-help:hover .bookmarks-sync-help-tooltip {
                 display: block;
-            }
-
-            .bookmarks-sync-help-tooltip h4 {
-                margin: 0 0 8px 0;
-                font-size: 13px;
-                font-weight: 600;
             }
 
             .bookmarks-sync-help-tooltip ol {
@@ -1466,8 +1456,7 @@
         // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ?
-                ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
             const newSvg = mainButton.querySelector('svg');
             if (newSvg && bookmarked) {
                 newSvg.style.fill = '#da3633';
@@ -1477,8 +1466,7 @@
         // Update text
         const textSpan = mainButton.querySelector('span[data-bookmark-text="true"]');
         if (textSpan) {
-            textSpan.textContent = bookmarked ?
-                'Bookmarked' : 'Bookmark';
+            textSpan.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
         }
 
         // Update counter
@@ -1541,8 +1529,7 @@
         // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
-            svg.outerHTML = bookmarked ?
-                ICONS.bookmarkFilled : ICONS.bookmarkHollow;
+            svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
             if (bookmarked) {
                 const newSvg = mainButton.querySelector('svg');
                 if (newSvg) newSvg.style.fill = '#da3633';
@@ -1555,8 +1542,7 @@
         for (const span of spans) {
             const text = span.textContent.trim();
             if ((text === 'Star' || text === 'Starred' || text === 'Unstar') && !span.children.length) {
-                span.textContent = bookmarked ?
-                    'Bookmarked' : 'Bookmark';
+                span.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
                 span.setAttribute('data-bookmark-text', 'true');
                 textFound = true;
                 break;
@@ -1566,8 +1552,7 @@
         if (!textFound) {
             const iconSpan = mainButton.querySelector('svg')?.parentElement;
             if (iconSpan?.nextElementSibling?.tagName === 'SPAN') {
-                iconSpan.nextElementSibling.textContent = bookmarked ?
-                    'Bookmarked' : 'Bookmark';
+                iconSpan.nextElementSibling.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
                 iconSpan.nextElementSibling.setAttribute('data-bookmark-text', 'true');
             }
         }
@@ -1592,7 +1577,7 @@
             counter.remove();
         }
 
-        // FIXED: Proper toggle functionality
+        // Proper toggle functionality
         mainButton.onclick = async (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1660,12 +1645,16 @@
     // ============================================================================
 
     async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
+        // NEW: cancel any previous in-flight render to avoid duplicate filter button rows
+        const token = ++modalRenderToken;
+
         contentEl.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
         filterEl.innerHTML = '';
 
         // Force cache invalidation to ensure fresh data
         Storage.invalidateCache();
         const bookmarks = await Storage.getBookmarks();
+        if (token !== modalRenderToken) return;
 
         // Create container for left side (filter buttons)
         const filterLeft = document.createElement('div');
@@ -1687,6 +1676,7 @@
 
         // Get visible lists (excluding DEFAULT_LIST)
         const visibleLists = await Storage.getVisibleLists();
+        if (token !== modalRenderToken) return;
 
         // Add separator after "All"
         const separator1 = document.createElement('div');
@@ -1722,7 +1712,9 @@
             filterLeft.appendChild(mobileSeparator);
         }
 
-        // Append both sides to the filter container
+        // Append both sides to the filter container (guarded; prevents duplicate copies)
+        if (token !== modalRenderToken) return;
+        filterEl.innerHTML = '';
         filterEl.appendChild(filterLeft);
         filterEl.appendChild(filterRight);
 
@@ -1812,22 +1804,17 @@
                     `}
                 `;
 
-                // FIXED: Handle clicks on the bookmark item itself (not the action buttons)
+                // Handle clicks on the bookmark item itself (not the action buttons)
                 item.addEventListener('click', (e) => {
                     if (e && e.target && typeof e.target.closest === 'function') {
-                        // Only handle clicks that aren't on action buttons
                         if (!e.target.closest('.bookmark-right-container') &&
                             !e.target.closest('a') &&
                             !e.target.closest('.bookmark-list-tag-icon') &&
                             !e.target.closest('.bookmark-action-btn')) {
-                            // Set flag to prevent modal from reopening
                             preventModalReopen = true;
-                            // Close modal first, then open the link
                             closeBookmarksModal();
-                            // Use a small timeout to ensure modal closes before navigation
                             setTimeout(() => {
                                 window.open(bookmark.repoUrl, '_blank');
-                                // Reset flag after navigation
                                 setTimeout(() => {
                                     preventModalReopen = false;
                                 }, 100);
@@ -1836,16 +1823,13 @@
                     }
                 });
 
-                // Handle clicks on the actual link (for middle-click, ctrl+click, etc.)
+                // Handle clicks on the actual link
                 const link = item.querySelector('.bookmark-title a');
                 if (link) {
                     link.addEventListener('click', (e) => {
-                        // For regular clicks, let the browser handle it (opens in new tab due to target="_blank")
-                        // For middle-clicks and modifier keys, also close the modal
                         if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
                             preventModalReopen = true;
                             closeBookmarksModal();
-                            // Reset flag after navigation
                             setTimeout(() => {
                                 preventModalReopen = false;
                             }, 100);
@@ -1867,7 +1851,6 @@
                     const repo = removeBtn.dataset.repo;
 
                     if (confirm(`Remove "${repo}" from all lists?`)) {
-                        // Immediately hide the item with a fade-out animation
                         const bookmarkItem = removeBtn.closest('.bookmark-item');
                         if (bookmarkItem) {
                             bookmarkItem.style.opacity = '0';
@@ -1882,12 +1865,10 @@
                                 await Storage.removeBookmark(repo, listName);
                             }
                         }
-                        // Also remove from DEFAULT_LIST if it exists
                         if (await Storage.isBookmarkedInList(repo, DEFAULT_LIST)) {
                             await Storage.removeBookmark(repo, DEFAULT_LIST);
                         }
 
-                        // Invalidate cache and re-render immediately
                         Storage.invalidateCache();
                         await renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter);
                     }
@@ -1953,7 +1934,7 @@
                 }
 
                 checkbox.addEventListener('change', async (e) => {
-                    if (listName === DEFAULT_LIST) return; // Skip for DEFAULT_LIST
+                    if (listName === DEFAULT_LIST) return;
 
                     e.stopPropagation();
                     if (e.target.checked) {
@@ -1965,7 +1946,7 @@
                     // Update current lists
                     const newLists = [];
                     for (const list of allLists) {
-                        if (list === DEFAULT_LIST) continue; // Skip DEFAULT_LIST
+                        if (list === DEFAULT_LIST) continue;
                         if (await Storage.isBookmarkedInList(repo, list)) {
                             newLists.push(list);
                         }
@@ -2209,6 +2190,9 @@
         modalOpen = true;
         Storage.setModalOpen(true);
 
+        // NEW: cancel any in-flight modal render from the previous overlay/navigation
+        modalRenderToken++;
+
         const overlay = document.createElement('div');
         overlay.className = 'bookmarks-modal-overlay';
         overlay.addEventListener('click', (e) => {
@@ -2260,7 +2244,6 @@
         const configBtn = document.createElement('button');
         configBtn.className = 'bookmarks-sync-btn';
         configBtn.textContent = 'Configure';
-        // UPDATED: Pass syncStatus to configureSyncToken for visual feedback
         configBtn.addEventListener('click', () => configureSyncToken(syncStatus));
 
         const helpIcon = document.createElement('div');
@@ -2314,31 +2297,25 @@
             const cleanToken = token.trim();
             Storage.setSyncToken(cleanToken);
 
-            // Update UI to show we are working
             if (statusElement) statusElement.textContent = '⌛ Searching for backup...';
 
-            // Attempt to find existing gist (paginated search)
             const existingGistId = await Storage.findExistingGist(cleanToken);
 
             if (existingGistId) {
                 if (statusElement) statusElement.textContent = '♻️ Restoring...';
 
-                // Link to existing gist
                 Storage.setGistId(existingGistId);
 
-                // Fetch data to ensure it works
                 const data = await Storage.fetchFromGist();
 
                 if (data) {
                     alert(`Found existing bookmark backup! \n\nRestoring ${Object.keys(data.bookmarks || {}).length} lists...`);
-                    // Reload to reflect changes across the UI
                     window.location.reload();
                 } else {
                      if (statusElement) statusElement.textContent = '⚠ Restore failed';
                      alert('Found a backup Gist, but could not read the data. Check console for details.');
                 }
             } else {
-                // No existing gist found
                 if (statusElement) statusElement.textContent = '✓ Token configured';
                 alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically the next time you bookmark a repository.');
             }
@@ -2346,6 +2323,9 @@
     }
 
     function closeBookmarksModal() {
+        // NEW: cancel any in-flight render to prevent late DOM appends (duplicate button rows)
+        modalRenderToken++;
+
         const modal = document.querySelector('.bookmarks-modal-overlay');
         if (modal) {
             document.removeEventListener('keydown', modal.escapeHandler);
