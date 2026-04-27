@@ -6,7 +6,8 @@
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
 // @match        https://github.com/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @license      MIT
 // ==/UserScript==
 
@@ -43,7 +44,7 @@
         gear: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path fill="currentColor" d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.5 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.5 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path></svg>`,
         gripVertical: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-4 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5-9a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
         lock: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z"></path></svg>`,
-        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.75-.25a.25.25 0 0 0-.25.25v3.5c0 .138.112.25.25.25h3.5a.25.25 0 0 0 .25-.25v-3.5a.25.25 0 0 0-.25-.25h-3.5Z"></path></svg>`
+        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`
     };
 
     let modalOpen = false;
@@ -63,21 +64,21 @@
         cache: null,
         cacheTimestamp: 0,
 
-        getSyncToken() {
-            return localStorage.getItem(STORAGE_KEYS.SYNC_TOKEN) || '';
-        },
+	getSyncToken() {
+    	return GM_getValue(STORAGE_KEYS.SYNC_TOKEN, '');
+	},
 
-        setSyncToken(token) {
-            localStorage.setItem(STORAGE_KEYS.SYNC_TOKEN, token);
-        },
+	setSyncToken(token) {
+    	GM_setValue(STORAGE_KEYS.SYNC_TOKEN, token);
+	},
 
-        getGistId() {
-            return localStorage.getItem(STORAGE_KEYS.SYNC_GIST_ID) || '';
-        },
+	getGistId() {
+    	return GM_getValue(STORAGE_KEYS.SYNC_GIST_ID, '');
+	},
 
-        setGistId(id) {
-            localStorage.setItem(STORAGE_KEYS.SYNC_GIST_ID, id);
-        },
+	setGistId(id) {
+    	GM_setValue(STORAGE_KEYS.SYNC_GIST_ID, id);
+	},
 
         isCacheValid() {
             return this.cache && (Date.now() - this.cacheTimestamp < CACHE_DURATION);
@@ -842,6 +843,12 @@
                 border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
             }
 
+            .bookmarks-manage-btn svg {
+                fill: none !important;
+                stroke: currentColor;
+                stroke-width: 1.75;
+            }
+
             .bookmarks-filter-btn {
                 padding: 5px 16px;
                 border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
@@ -1008,7 +1015,7 @@
                 height: 14px;
                 fill: none !important;
                 stroke: currentColor;
-                stroke-width: 1.5;
+                stroke-width: 1.75;
             }
 
             /* Updated CSS for Modal Action Buttons */
@@ -1702,7 +1709,7 @@
         // Add "Manage lists" button to the RIGHT SIDE
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'bookmarks-manage-btn';
-        settingsBtn.innerHTML = `${ICONS.gear}`;
+        settingsBtn.innerHTML = ICONS.tag;
         settingsBtn.title = 'Manage Lists';
         settingsBtn.addEventListener('click', openListManagementModal);
         filterRight.appendChild(settingsBtn);
@@ -1813,7 +1820,7 @@
                             !e.target.closest('a') &&
                             !e.target.closest('.bookmark-list-tag-icon') &&
                             !e.target.closest('.bookmark-action-btn')) {
-                            
+
                             preventModalReopen = true;
                             closeBookmarksModal();
                             window.location.href = bookmark.repoUrl;
@@ -1828,17 +1835,17 @@
                         if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
                             e.preventDefault(); // Prevent default middle-click/ctrl+click behavior
                             e.stopPropagation();
-                            
+
                             // Open in new tab but close the modal first
                             preventModalReopen = true;
                             closeBookmarksModal();
-                            
+
                             // Open the link in a new tab
                             const newWindow = window.open(bookmark.repoUrl, '_blank');
                             if (newWindow) {
                                 newWindow.focus();
                             }
-                            
+
                             // Reset the prevent flag after a short delay
                             setTimeout(() => {
                                 preventModalReopen = false;
@@ -1868,15 +1875,15 @@
 
                     if (confirm(`Remove "${repo}" from all lists?`)) {
                         const bookmarkItem = removeBtn.closest('.bookmark-item');
-                        
+
                         // Animate removal
                         bookmarkItem.style.opacity = '0';
                         bookmarkItem.style.transition = 'opacity 0.2s ease-out';
                         bookmarkItem.style.pointerEvents = 'none';
-                        
+
                         // Set flag to prevent modal re-render
                         isLocalDeletion = true;
-                        
+
                         // Remove from all lists including DEFAULT_LIST
                         const allLists = await Storage.getLists();
                         for (const listName of allLists) {
@@ -1889,11 +1896,11 @@
                         }
 
                         Storage.invalidateCache();
-                        
+
                         // Instead of re-rendering the whole modal, remove this specific item
                         setTimeout(() => {
                             bookmarkItem.remove();
-                            
+
                             // Check if there are any bookmarks left in the current view
                             const listEl = contentEl.querySelector('.bookmarks-list');
                             if (listEl && listEl.children.length === 0) {
@@ -1905,24 +1912,24 @@
                                         <div class="bookmarks-empty-text">Start bookmarking repositories to see them here!</div>
                                     </div>
                                 `;
-                                
+
                                 // Update stats
                                 statsEl.querySelector('.bookmarks-stats-text').textContent = 'No bookmarks';
                             } else {
                                 // Update the total count in stats
                                 const remainingItems = listEl ? listEl.children.length : 0;
-                                statsEl.querySelector('.bookmarks-stats-text').textContent = 
+                                statsEl.querySelector('.bookmarks-stats-text').textContent =
                                     `${remainingItems} bookmark${remainingItems !== 1 ? 's' : ''}`;
                             }
-                            
+
                             // Reset local deletion flag
                             setTimeout(() => {
                                 isLocalDeletion = false;
                             }, 300);
-                            
+
                             // Update the main bookmark button counter but DON'T trigger modal refresh
                             updateBookmarkButton();
-                            
+
                             // Manually update the profile tab counter if it exists
                             const profileTab = document.querySelector('.gh-bookmarks-tab');
                             if (profileTab) {
@@ -2397,7 +2404,7 @@
             modalOpen = false;
             Storage.setModalOpen(false);
             document.body.style.overflow = '';
-            
+
             // Don't reset preventModalReopen immediately - it will be reset by the navigation handler
         }
     }
@@ -2539,7 +2546,7 @@
                 const content = modal.querySelector('.bookmarks-modal-content');
                 const filter = modal.querySelector('.bookmarks-filter');
                 const stats = modal.querySelector('.bookmarks-stats');
-                
+
                 // Check if there's a fade-out animation happening
                 const fadingItems = document.querySelectorAll('.bookmark-item[style*="opacity: 0"]');
                 if (content && filter && stats && fadingItems.length === 0) {
