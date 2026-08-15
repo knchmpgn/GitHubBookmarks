@@ -1479,6 +1479,8 @@
         }
 
         // Update counter
+        mainButton.querySelector('[data-component="CounterLabel"]')?.remove();
+        mainButton.querySelector('[class*="VisuallyHidden"]')?.remove();
         let counter = mainButton.querySelector('.Counter');
         if (totalCount > 0) {
             const countText = totalCount.toLocaleString();
@@ -1503,22 +1505,28 @@
         const repoInfo = Repo.getInfo();
         if (!repoInfo || !Repo.isRepoPage()) return;
 
-        const actionBar = document.querySelector('.pagehead-actions');
-        if (!actionBar || document.querySelector('.gh-bookmark-container')) return;
+        if (document.querySelector('.gh-bookmark-container')) return;
 
-        const starContainer = Array.from(actionBar.children).find(child =>
-            child.querySelector('form[action*="/star"], form[action*="/unstar"]')
-        );
-        if (!starContainer) return;
-
-        const starButton = starContainer.querySelector('button[type="submit"]');
+        // GitHub replaced the old .pagehead-actions <ul>/<li> markup with a React
+        // ButtonGroup. The star button now carries a stable data-testid; find it
+        // directly instead of the old form[action*="/star"] lookup, with the old
+        // selector kept as a fallback in case GitHub reverts or A/B tests markup.
+        const starButton = document.querySelector('[data-testid="star-button"]')
+            || document.querySelector('.pagehead-actions')?.querySelector('form[action*="/star"], form[action*="/unstar"]')?.closest('li')?.querySelector('button[type="submit"]');
         if (!starButton) return;
+
+        // The repo actions row is a <ul>/<li> list (each action — Watch, Fork,
+        // Star — is its own <li>). Insert our own <li> as a sibling before the
+        // star button's <li>, so it sits in the same flex row instead of
+        // nesting inside it (which stacked it vertically on top).
+        const starLi = starButton.closest('li');
+        if (!starLi || !starLi.parentElement) return;
 
         const { repo, repoUrl } = repoInfo;
         const bookmarked = await Storage.isBookmarked(repo);
         const totalCount = await Storage.getTotalCount();
 
-        // Create container
+        // Create container as a <li> — matches the sibling list items (Watch/Fork/Star)
         const bookmarkContainer = document.createElement('li');
         bookmarkContainer.classList.add('gh-bookmark-container');
 
@@ -1531,6 +1539,9 @@
         mainButton.removeAttribute('data-hydro-click');
         mainButton.removeAttribute('data-hydro-click-hmac');
         mainButton.removeAttribute('data-ga-click');
+        mainButton.removeAttribute('data-testid'); // avoid a second element with the same testid
+        mainButton.removeAttribute('aria-describedby'); // pointed at the original button's tooltip node
+        mainButton.setAttribute('aria-label', bookmarked ? 'Remove bookmark' : 'Bookmark this repository');
         mainButton.style.borderTopRightRadius = '0';
         mainButton.style.borderBottomRightRadius = '0';
         mainButton.style.borderRight = '1px solid var(--borderColor-default, var(--color-border-default))';
@@ -1566,6 +1577,13 @@
             }
         }
 
+        // GitHub renders the count multiple ways in the same button (a visible
+        // CounterLabel, a visually-hidden a11y duplicate, and a legacy .Counter
+        // span) — all cloned along with the star count baked in. Strip the
+        // extras so only one number shows, then drive that one .Counter span.
+        mainButton.querySelector('[data-component="CounterLabel"]')?.remove();
+        mainButton.querySelector('[class*="VisuallyHidden"]')?.remove();
+
         // Update counter
         let counter = mainButton.querySelector('.Counter');
         if (totalCount > 0) {
@@ -1580,7 +1598,10 @@
                 counter.className = 'Counter';
                 counter.textContent = countText;
                 counter.setAttribute('title', countTitle);
-                mainButton.appendChild(counter);
+                // Prefer appending inside the text wrapper so it sits next to
+                // the label like GitHub's own counters do; fall back to the
+                // button itself if that wrapper isn't found.
+                (mainButton.querySelector('[data-component="text"]') || mainButton).appendChild(counter);
             }
         } else if (counter) {
             counter.remove();
@@ -1646,7 +1667,7 @@
         };
         document.addEventListener('click', closeHandler);
 
-        actionBar.insertBefore(bookmarkContainer, starContainer);
+        starLi.parentElement.insertBefore(bookmarkContainer, starLi);
     }
 
     // ============================================================================
@@ -2410,11 +2431,22 @@
     }
 
     async function addBookmarksToProfileMenu() {
-        const reposLink = document.querySelector('a[href*="?tab=repositories"]');
-        if (!reposLink) return;
-
-        const parentList = reposLink.closest('ul');
-        if (!parentList || !parentList.className.includes('prc-ActionList')) return;
+        // NOTE: '?tab=repositories' also matches the profile page's own UnderlineNav
+        // tab (not just the avatar dropdown item), so querySelector() could grab the
+        // wrong element. Scan all matches and only accept the one inside the
+        // dropdown's prc-ActionList <ul>.
+        const candidates = document.querySelectorAll('a[href*="?tab=repositories"]');
+        let reposLink = null;
+        let parentList = null;
+        for (const candidate of candidates) {
+            const ul = candidate.closest('ul');
+            if (ul && ul.className.includes('prc-ActionList')) {
+                reposLink = candidate;
+                parentList = ul;
+                break;
+            }
+        }
+        if (!reposLink || !parentList) return;
 
         if (parentList.querySelector('.gh-bookmarks-profile-item')) return;
 
