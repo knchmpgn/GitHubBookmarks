@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      5.1.0
-// @description  Complete system to bookmark GitHub repositories with lists and syncing via Gist.
+// @version      6.2.0
+// @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
 // @match        https://github.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @require      https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js
 // @license      MIT
 // ==/UserScript==
 
@@ -23,13 +24,23 @@
         SYNC_GIST_ID: 'ghBookmarkSyncGistId',
         CACHE: 'ghBookmarkCache',
         CACHE_TIMESTAMP: 'ghBookmarkCacheTimestamp',
-        MODAL_OPEN: 'ghBookmarkModalOpen' // Track if modal was open
+        SORT_PREFERENCE: 'ghBookmarkSortPreference'
     };
 
     const DEFAULT_LIST = 'Unassigned';
     const SYNC_HELP_URL = 'https://github.com/settings/tokens/new';
     const CACHE_DURATION = 30000; // 30 seconds
     const GIST_FILENAME = 'github-bookmarks.json';
+    const BOOKMARKS_PAGE_PATH = '/bookmarked-repositories';
+
+    // Sort options
+    const SORT_OPTIONS = {
+        'manual': 'Manual (drag to reorder)',
+        'alpha-asc': 'Name (A-Z)',
+        'alpha-desc': 'Name (Z-A)',
+        'date-desc': 'Newest first',
+        'date-asc': 'Oldest first'
+    };
 
     // SVG Icons
     const ICONS = {
@@ -41,44 +52,49 @@
         trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
         questionMark: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085h.001a.749.749 0 1 1-1.342-.67c.169-.339.436-.701.849-.977C6.845 4.16 7.369 4 8 4a2.756 2.756 0 0 1 1.638.525c.503.377.862.965.862 1.725 0 .448-.115.83-.329 1.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6.24 6.24 0 0 0-.26.16.952.952 0 0 0-.276.245.75.75 0 0 1-1.248-.832c.184-.264.42-.489.692-.661.103-.067.207-.132.313-.195l.007-.004c.1-.061.182-.11.258-.161a.969.969 0 0 0 .277-.245C8.96 6.514 9 6.427 9 6.25c0-.412-.155-.826-.57-1.12A1.256 1.256 0 0 0 8 4.75c-.361 0-.67.1-.894.27-.228.173-.4.412-.534.714v.001ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
         pencil: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path></svg>`,
-        gear: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path fill="currentColor" d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.5 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.5 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"></path></svg>`,
-        gripVertical: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm-4 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm5-9a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM6 5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
-        lock: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M4 4a4 4 0 0 1 8 0v2h.25c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-5.5C2 6.784 2.784 6 3.75 6H4Zm8.25 3.5h-8.5a.25.25 0 0 0-.25.25v5.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25ZM10.5 6V4a2.5 2.5 0 1 0-5 0v2Z"></path></svg>`,
-        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`
+        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`,
+        search: `<svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" fill="currentColor" class="octicon octicon-search"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg>`,
+        sync: `<svg class="octicon octicon-sync" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z"></path></svg>`,
+        download: `<svg class="octicon octicon-download" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"></path><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"></path></svg>`,
+        upload: `<svg class="octicon octicon-upload" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 9a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h8a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 12 14H4a1.75 1.75 0 0 1-1.75-1.75v-2.5A.75.75 0 0 1 3 9Z"></path><path d="M8.75 3.561V10a.75.75 0 0 1-1.5 0V3.56L5.28 5.53a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25a.749.749 0 1 1-1.06 1.06L8.75 3.56Z"></path></svg>`,
+        sort: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 4.75A.75.75 0 0 1 .75 4h14.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 4.75Zm0 3.5A.75.75 0 0 1 .75 7.5h10.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 8.25Zm0 3.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75Z"></path></svg>`,
+        chevronDown: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"></path></svg>`,
+        grabber: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM6 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`
     };
 
-    let modalOpen = false;
     let syncInProgress = false;
-    let preventModalReopen = false; // Flag to prevent modal from reopening
-    let isLocalDeletion = false; // Flag to track local deletions
-
-    // NEW: render token to prevent async re-render races (duplicate filter buttons)
-    let modalRenderToken = 0;
 
     // ============================================================================
     // GIST-BASED STORAGE UTILITIES
     // ============================================================================
 
     const Storage = {
-        // Local cache for faster reads
         cache: null,
         cacheTimestamp: 0,
 
-	getSyncToken() {
-    	return GM_getValue(STORAGE_KEYS.SYNC_TOKEN, '');
-	},
+        getSyncToken() {
+            return GM_getValue(STORAGE_KEYS.SYNC_TOKEN, '');
+        },
 
-	setSyncToken(token) {
-    	GM_setValue(STORAGE_KEYS.SYNC_TOKEN, token);
-	},
+        setSyncToken(token) {
+            GM_setValue(STORAGE_KEYS.SYNC_TOKEN, token);
+        },
 
-	getGistId() {
-    	return GM_getValue(STORAGE_KEYS.SYNC_GIST_ID, '');
-	},
+        getGistId() {
+            return GM_getValue(STORAGE_KEYS.SYNC_GIST_ID, '');
+        },
 
-	setGistId(id) {
-    	GM_setValue(STORAGE_KEYS.SYNC_GIST_ID, id);
-	},
+        setGistId(id) {
+            GM_setValue(STORAGE_KEYS.SYNC_GIST_ID, id);
+        },
+
+        getSortPreference() {
+            return GM_getValue(STORAGE_KEYS.SORT_PREFERENCE, 'alpha-asc');
+        },
+
+        setSortPreference(pref) {
+            GM_setValue(STORAGE_KEYS.SORT_PREFERENCE, pref);
+        },
 
         isCacheValid() {
             return this.cache && (Date.now() - this.cacheTimestamp < CACHE_DURATION);
@@ -89,7 +105,6 @@
             this.cacheTimestamp = 0;
         },
 
-        // UPDATED: Robust search that handles pagination (scans ALL gists, not just first 100)
         async findExistingGist(token) {
             try {
                 let page = 1;
@@ -107,7 +122,7 @@
                     if (!response.ok) break;
 
                     const gists = await response.json();
-                    if (gists.length === 0) break; // No more gists
+                    if (gists.length === 0) break;
 
                     const found = gists.find(gist => gist.files && gist.files[GIST_FILENAME]);
                     if (found) {
@@ -160,7 +175,6 @@
             }
         },
 
-        // UPDATED: Auto-discovery before creation to strictly prevent duplicates
         async saveToGist(data, silent = true) {
             if (syncInProgress) {
                 console.log('Sync already in progress');
@@ -175,7 +189,6 @@
                 return { success: false, error: 'No token configured' };
             }
 
-            // SAFETY CHECK: If we have a token but no Gist ID, try to find one first.
             let gistId = this.getGistId();
             if (!gistId) {
                 console.log('No Gist ID linked. Searching for existing backup before creating new...');
@@ -221,7 +234,6 @@
 
                 const result = await response.json();
 
-                // If we just created a new Gist (POST), save the new ID
                 if (!gistId) {
                     this.setGistId(result.id);
                 }
@@ -242,7 +254,6 @@
             }
         },
 
-        // Get data with caching
         async getData() {
             if (this.isCacheValid()) return this.cache;
 
@@ -322,7 +333,7 @@
             const data = await this.getData();
             if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
             if (!data.bookmarks[listName].some(b => b.repo === repo)) {
-                data.bookmarks[listName].push({ repo, repoUrl });
+                data.bookmarks[listName].push({ repo, repoUrl, addedAt: new Date().toISOString() });
                 await this.saveToGist(data);
                 return true;
             }
@@ -411,7 +422,6 @@
                 listOrder: remoteData.listOrder || localData.listOrder || []
             };
 
-            // Merge bookmarks from local into remote
             for (const [listName, repos] of Object.entries(localData.bookmarks || {})) {
                 if (!merged.bookmarks[listName]) {
                     merged.bookmarks[listName] = [];
@@ -426,7 +436,7 @@
         },
 
         async initialize() {
-            const localData = await this.getData(); // Get what's currently in cache/local
+            const localData = await this.getData();
             const remoteData = await this.fetchFromGist(true);
 
             if (remoteData) {
@@ -434,17 +444,8 @@
                 const mergedData = await this.mergeData(localData, remoteData);
                 this.cache = mergedData;
                 this.cacheTimestamp = Date.now();
-                // Save the merged result back to Gist to ensure they are in sync
                 await this.saveToGist(mergedData, true);
             }
-        },
-
-        setModalOpen(isOpen) {
-            localStorage.setItem(STORAGE_KEYS.MODAL_OPEN, isOpen ? 'true' : 'false');
-        },
-
-        getModalOpen() {
-            return localStorage.getItem(STORAGE_KEYS.MODAL_OPEN) === 'true';
         }
     };
 
@@ -467,6 +468,50 @@
         isRepoPage() {
             const pathParts = window.location.pathname.split('/').filter(Boolean);
             return pathParts.length >= 2 && !pathParts[0].startsWith('?');
+        },
+
+        isBookmarksPage() {
+            return window.location.pathname === BOOKMARKS_PAGE_PATH;
+        }
+    };
+
+    // ============================================================================
+    // SORTING UTILITIES
+    // ============================================================================
+
+    const Sorter = {
+        sortBookmarks(items, sortPref) {
+            const sorted = [...items];
+
+            switch (sortPref) {
+                case 'manual':
+                    // Manual order: keep the array order as stored
+                    break;
+                case 'alpha-asc':
+                    sorted.sort((a, b) => a.repo.localeCompare(b.repo));
+                    break;
+                case 'alpha-desc':
+                    sorted.sort((a, b) => b.repo.localeCompare(a.repo));
+                    break;
+                case 'date-desc':
+                    sorted.sort((a, b) => {
+                        const dateA = a.addedAt ? new Date(a.addedAt) : new Date(0);
+                        const dateB = b.addedAt ? new Date(b.addedAt) : new Date(0);
+                        return dateB - dateA;
+                    });
+                    break;
+                case 'date-asc':
+                    sorted.sort((a, b) => {
+                        const dateA = a.addedAt ? new Date(a.addedAt) : new Date(0);
+                        const dateB = b.addedAt ? new Date(b.addedAt) : new Date(0);
+                        return dateA - dateB;
+                    });
+                    break;
+                default:
+                    sorted.sort((a, b) => a.repo.localeCompare(b.repo));
+            }
+
+            return sorted;
         }
     };
 
@@ -701,155 +746,46 @@
                 fill: currentColor;
             }
 
-            /* Loading indicator */
-            .bookmarks-loading {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 40px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-            }
-
-            /* Modal Overlay and other styles continue... */
-            .bookmarks-modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 9999;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0;
-                animation: fadeIn 0.15s ease-in-out forwards;
-            }
-
-            @keyframes fadeIn {
-                to { opacity: 1; }
-            }
-
-            .bookmarks-modal {
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
+            /* Bookmarks Page Styles */
+            #bookmarks-page-container {
+                max-width: 900px;
+                margin: 32px auto;
+                padding: 24px;
+                background: var(--bgColor-default, var(--color-canvas-default));
                 border: 1px solid var(--borderColor-default, var(--color-border-default));
                 border-radius: 12px;
-                box-shadow: var(--shadow-floating-xlarge);
-                width: 90%;
-                max-width: 1000px;
-                max-height: 80vh;
-                display: flex;
-                flex-direction: column;
-                animation: slideUp 0.2s ease-out;
-            }
-
-            @keyframes slideUp {
-                from {
-                    transform: translateY(20px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-            }
-
-            .bookmarks-modal-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 16px 24px;
-                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .bookmarks-modal-title {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 20px;
-                font-weight: 600;
                 color: var(--fgColor-default, var(--color-fg-default));
-                margin: 0;
+                font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
             }
 
-            .bookmarks-modal-close {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                padding: 0;
-                background: transparent;
-                border: 0;
-                border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                cursor: pointer;
-            }
-
-            .bookmarks-modal-close:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-            }
-
-            /* UPDATED: Bookmarks filter layout */
-            .bookmarks-filter {
+            #bookmarks-page-container .page-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 24px 24px 24px 24px;
+                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                padding-bottom: 16px;
+                margin-bottom: 24px;
                 flex-wrap: wrap;
+                gap: 12px;
             }
 
-            .bookmarks-filter-left {
+            #bookmarks-page-container .page-header h2 {
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 24px;
+                font-weight: 600;
+            }
+
+            #bookmarks-page-container .page-header-actions {
                 display: flex;
                 gap: 8px;
                 align-items: center;
                 flex-wrap: wrap;
-                flex: 1;
             }
 
-            .bookmarks-filter-right {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                flex-shrink: 0;
-            }
-
-            .bookmarks-filter-separator {
-                width: 1px;
-                height: 20px;
-                background-color: var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .bookmarks-manage-btn {
-                padding: 5px 12px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
-                border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                white-space: nowrap;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-                flex-shrink: 0;
-                height: 32px;
-            }
-
-            .bookmarks-manage-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
-            }
-
-            .bookmarks-manage-btn svg {
-                fill: none !important;
-                stroke: currentColor;
-                stroke-width: 1.75;
-            }
-
-            .bookmarks-filter-btn {
+            #bookmarks-page-container .page-header-actions .btn {
                 padding: 5px 16px;
                 border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
                 border-radius: 6px;
@@ -858,502 +794,455 @@
                 font-size: 14px;
                 font-weight: 500;
                 cursor: pointer;
-                white-space: nowrap;
-                display: flex;
+                display: inline-flex;
                 align-items: center;
                 gap: 6px;
-                height: 32px;
+                transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
             }
 
-            .bookmarks-filter-btn:hover {
+            #bookmarks-page-container .page-header-actions .btn:hover {
                 background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
                 border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
             }
 
-            .bookmarks-filter-btn.active {
-                background-color: var(--button-primary-bgColor-rest, var(--color-btn-primary-bg));
-                border-color: var(--button-primary-bgColor-rest, var(--color-btn-primary-bg));
-                color: var(--button-primary-fgColor-rest, var(--color-btn-primary-text));
+            /* Sort dropdown */
+            .sort-dropdown-container {
+                position: relative;
+                display: inline-block;
             }
 
-            .bookmarks-modal-content {
-                flex: 1;
-                overflow-y: auto;
-                padding: 0px 24px 0px 24px;
-                margin-bottom: 24px;
+            .sort-dropdown-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
             }
 
-            .bookmarks-list {
+            .sort-dropdown-btn .sort-chevron {
+                transition: transform 0.2s ease;
+            }
+
+            .sort-dropdown-container.open .sort-dropdown-btn .sort-chevron {
+                transform: rotate(180deg);
+            }
+
+            .sort-dropdown-menu {
+                position: absolute;
+                top: calc(100% + 4px);
+                right: 0;
+                z-index: 100;
+                min-width: 200px;
+                background: var(--overlay-bgColor, var(--color-canvas-overlay));
+                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                border-radius: 8px;
+                box-shadow: var(--shadow-floating-large, var(--color-shadow-large));
+                padding: 4px;
+                display: none;
+            }
+
+            .sort-dropdown-container.open .sort-dropdown-menu {
+                display: block;
+            }
+
+            .sort-dropdown-item {
                 display: flex;
-                flex-direction: column;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                padding: 6px 12px;
+                font-size: 13px;
+                color: var(--fgColor-default, var(--color-fg-default));
+                background: transparent;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                text-align: left;
+                font-family: inherit;
                 gap: 8px;
             }
 
-            .bookmarks-empty {
-                text-align: center;
-                padding: 24px 48px 24px 72px;
+            .sort-dropdown-item:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            }
+
+            .sort-dropdown-item.active {
+                font-weight: 600;
+            }
+
+            .sort-dropdown-item .check-icon {
+                color: var(--fgColor-accent, var(--color-accent-fg));
+                width: 16px;
+                height: 16px;
+                opacity: 0;
+                flex-shrink: 0;
+            }
+
+            .sort-dropdown-item.active .check-icon {
+                opacity: 1;
+            }
+
+            #bookmarks-page-container .search-container {
+                margin-bottom: 24px;
+                display: flex;
+                align-items: center;
+                background: var(--bgColor-muted, var(--color-canvas-subtle));
+                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                border-radius: 6px;
+                padding: 6px 12px;
+                gap: 8px;
+            }
+
+            #bookmarks-page-container .search-container svg {
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                flex-shrink: 0;
+            }
+
+            #bookmarks-page-container .search-container input {
+                width: 100%;
+                background: transparent;
+                border: none;
+                outline: none;
+                color: var(--fgColor-default, var(--color-fg-default));
+                font-size: 14px;
+                padding: 6px 0;
+                font-family: inherit;
+            }
+
+            #bookmarks-page-container .search-container input::placeholder {
                 color: var(--fgColor-muted, var(--color-fg-muted));
             }
 
-            .bookmarks-empty-icon {
-                display: inline-block;
+            #bookmarks-page-container .bookmark-category {
                 margin-bottom: 24px;
-                opacity: 0.5;
-                scale: 3;
             }
 
-            .bookmarks-empty-title {
-                font-size: 24px;
-                font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
-                margin-bottom: 3px;
-            }
-
-            /* UPDATED: Bookmark item layout */
-            .bookmark-item {
+            #bookmarks-page-container .bookmark-category-header {
                 display: flex;
-                align-items: flex-start;
-                gap: 12px;
+                justify-content: space-between;
+                align-items: center;
                 padding: 12px 16px;
-                background-color: var(--bgColor-default, var(--color-canvas-default));
+                background: var(--bgColor-muted, var(--color-canvas-subtle));
                 border: 1px solid var(--borderColor-default, var(--color-border-default));
                 border-radius: 6px;
                 cursor: pointer;
-                position: relative;
-                transition: opacity 0.2s ease-out;
+                user-select: none;
+                transition: background 0.1s ease;
             }
 
-            .bookmark-item:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            #bookmarks-page-container .bookmark-category-header:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
             }
 
-            .bookmark-icon-container {
-                flex-shrink: 0;
-                width: 20px;
-                height: 20px;
+            #bookmarks-page-container .bookmark-category-header h3 {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
                 display: flex;
-                align-items: flex-start;
+                align-items: center;
+                gap: 8px;
+            }
+
+            #bookmarks-page-container .bookmark-category-header .category-count {
+                font-size: 12px;
+                font-weight: 400;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                padding: 2px 8px;
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                border-radius: 12px;
+            }
+
+            #bookmarks-page-container .bookmark-category-header .collapse-icon {
+                transition: transform 0.2s ease;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+            }
+
+            #bookmarks-page-container .bookmark-category-header .collapse-icon.collapsed {
+                transform: rotate(-90deg);
+            }
+
+            #bookmarks-page-container .bookmark-category-body {
+                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                border-top: none;
+                border-radius: 0 0 6px 6px;
+                overflow: hidden;
+                min-height: 20px;
+            }
+
+            #bookmarks-page-container .bookmark-category-body.collapsed {
+                display: none;
+            }
+
+            /* Drag and drop styles */
+            #bookmarks-page-container .bookmark-item {
+                padding: 12px 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: var(--bgColor-default, var(--color-canvas-default));
+                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
+                transition: background 0.1s ease;
+            }
+
+            #bookmarks-page-container .bookmark-item:first-child {
+                border-top: none;
+            }
+
+            #bookmarks-page-container .bookmark-item:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            }
+
+            #bookmarks-page-container .bookmark-item.dragging {
+                opacity: 0.5;
+                background: var(--bgColor-accent-muted, var(--color-accent-subtle));
+            }
+
+            #bookmarks-page-container .bookmark-item.drag-over {
+                border-top: 2px solid var(--fgColor-accent, var(--color-accent-fg));
+            }
+
+            #bookmarks-page-container .bookmark-item .drag-handle {
+                display: flex;
+                align-items: center;
                 justify-content: center;
                 color: var(--fgColor-muted, var(--color-fg-muted));
-                margin-top: 5px;
+                cursor: grab;
+                padding: 0 4px;
+                margin-right: 4px;
+                flex-shrink: 0;
+                border-radius: 4px;
+                transition: color 0.1s ease;
             }
 
-            .bookmark-icon-container svg {
-                width: 20px;
-                height: 20px;
+            #bookmarks-page-container .bookmark-item .drag-handle:hover {
+                color: var(--fgColor-default, var(--color-fg-default));
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
             }
 
-            .bookmark-info {
-                flex: 1;
-                min-width: 0;
+            #bookmarks-page-container .bookmark-item .drag-handle:active {
+                cursor: grabbing;
+            }
+
+            #bookmarks-page-container .bookmark-item .bookmark-info {
                 display: flex;
-                flex-direction: column;
-                gap: 4px;
-                padding-right: 100px;
+                align-items: center;
+                gap: 12px;
+                min-width: 0;
+                flex: 1;
+                flex-wrap: wrap;
             }
 
-            .bookmark-title {
+            #bookmarks-page-container .bookmark-item .bookmark-info a {
+                color: var(--fgColor-accent, var(--color-accent-fg));
+                text-decoration: none;
+                font-weight: 600;
                 font-size: 14px;
-                font-weight: 500;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
 
-            .bookmark-title a {
-                color: var(--fgColor-accent, var(--color-accent-fg));
-                text-decoration: none;
-                font-weight: 600;
-            }
-
-            .bookmark-title a:hover {
+            #bookmarks-page-container .bookmark-item .bookmark-info a:hover {
                 text-decoration: underline;
             }
 
-            .bookmark-description {
-                font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                line-height: 1.5;
-            }
-
-            /* UPDATED: Bookmark right container - aligned to the right */
-            .bookmark-right-container {
-                position: absolute;
-                right: 16px;
-                top: 50%;
-                transform: translateY(-50%);
+            #bookmarks-page-container .bookmark-item .bookmark-actions {
                 display: flex;
-                align-items: center;
-                gap: 8px;
+                gap: 4px;
+                flex-shrink: 0;
             }
 
-            /* FIXED: Tag icon styling - linear version */
-            .bookmark-list-tag-icon {
+            #bookmarks-page-container .bookmark-item .bookmark-actions button {
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                padding: 4px;
                 width: 28px;
                 height: 28px;
-                padding: 0;
-                background: transparent;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                cursor: pointer;
-                fill: none;
-                stroke: currentColor;
-            }
-
-            .bookmark-list-tag-icon:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                border-color: var(--borderColor-accent-muted, var(--color-accent-muted));
-                color: var(--fgColor-accent, var(--color-accent-fg));
-            }
-
-            .bookmark-list-tag-icon svg {
-                width: 14px;
-                height: 14px;
-                fill: none !important;
-                stroke: currentColor;
-                stroke-width: 1.75;
-            }
-
-            /* Updated CSS for Modal Action Buttons */
-            .gh-bookmark-action-btn {
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-                padding: 4px !important;
-                width: 28px !important;
-                height: 28px !important;
-                flex-shrink: 0 !important;
                 background: transparent;
                 border: 1px solid transparent;
                 border-radius: 6px;
                 color: var(--fgColor-muted, var(--color-fg-muted));
                 cursor: pointer;
+                transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
             }
 
-            .gh-bookmark-action-btn:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            #bookmarks-page-container .bookmark-item .bookmark-actions button:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
                 color: var(--fgColor-default, var(--color-fg-default));
             }
 
-            .bookmark-action-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 28px;
-                height: 28px;
-                padding: 0;
-                background: transparent;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                cursor: pointer;
-            }
-
-            .bookmark-action-btn:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover {
                 color: var(--danger-fgColor, var(--color-danger-fg));
                 border-color: var(--danger-borderColor, var(--color-danger-emphasis));
             }
 
-            .bookmark-list-dropdown {
-                position: fixed;
-                z-index: 10000;
-                margin-top: 4px;
-                width: 200px;
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                box-shadow: var(--shadow-floating-medium);
-                padding: 8px 0;
+            #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover {
+                color: var(--fgColor-accent, var(--color-accent-fg));
+                border-color: var(--borderColor-accent-emphasis, var(--color-accent-emphasis));
             }
 
-            .bookmark-list-dropdown-item {
+            #bookmarks-page-container .bookmark-item .bookmark-tags {
+                display: flex;
+                gap: 4px;
+                flex-wrap: wrap;
+            }
+
+            #bookmarks-page-container .bookmark-item .bookmark-tag {
+                font-size: 11px;
+                padding: 1px 8px;
+                border-radius: 12px;
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                border: 1px solid var(--borderColor-muted, var(--color-border-muted));
+            }
+
+            /* Move-to-list dropdown */
+            .move-list-menu {
+                position: fixed;
+                z-index: 200;
+                min-width: 180px;
+                background: var(--overlay-bgColor, var(--color-canvas-overlay));
+                border: 1px solid var(--borderColor-default, var(--color-border-default));
+                border-radius: 8px;
+                box-shadow: var(--shadow-floating-large, var(--color-shadow-large));
+                padding: 4px;
+                display: none;
+            }
+
+            .move-list-menu.open {
+                display: block;
+            }
+
+            .move-list-item {
                 display: flex;
                 align-items: center;
                 width: 100%;
-                padding: 6px 16px;
-                background: transparent;
-                border: 0;
+                padding: 6px 12px;
+                font-size: 13px;
                 color: var(--fgColor-default, var(--color-fg-default));
-                font-size: 14px;
+                background: transparent;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
                 text-align: left;
-                cursor: pointer;
+                font-family: inherit;
                 gap: 8px;
             }
 
-            .bookmark-list-dropdown-item:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            .move-list-item:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
             }
 
-            /* List Management Modal */
-            .list-management-modal {
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 12px;
-                box-shadow: var(--shadow-floating-xlarge);
-                width: 90%;
-                max-width: 500px;
-                max-height: 600px;
-                display: flex;
-                flex-direction: column;
-            }
-
-            .list-management-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 16px 24px;
-                border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));
-            }
-
-            .list-management-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: var(--fgColor-default, var(--color-fg-default));
-                margin: 0;
-            }
-
-            .list-management-content {
-                flex: 1;
-                overflow-y: auto;
-                padding: 24px 24px 12px 24px;
-            }
-
-            .list-management-item {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 12px;
-                background-color: var(--bgColor-default, var(--color-canvas-default));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                margin-bottom: 12px;
-            }
-
-            .list-management-item.default-list {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                opacity: 0.7;
-            }
-
-            .list-management-item-name {
-                flex: 1;
-                font-size: 14px;
-                font-weight: 500;
-                color: var(--fgColor-default, var(--color-fg-default));
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .list-management-item-count {
-                font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                padding: 2px 8px;
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                border-radius: 12px;
-            }
-
-            .list-management-item-actions {
-                display: flex;
-                gap: 4px;
-            }
-
-            .list-management-action-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 28px;
-                height: 28px;
-                padding: 0;
-                background: transparent;
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                cursor: pointer;
-            }
-
-            .list-management-action-btn:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-            }
-
-            .list-management-action-btn:disabled {
+            .move-list-item.disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
             }
 
-            .list-management-footer {
-                display: flex;
-                padding: 24px;
-                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
+            #bookmarks-page-container .empty-state {
+                text-align: center;
+                padding: 60px 20px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
             }
 
-            .list-management-create-btn {
-                width: 100%;
-                padding: 8px 16px;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border));
-                border-radius: 6px;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
-                color: var(--button-default-fgColor-rest, var(--color-btn-text));
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
+            #bookmarks-page-container .empty-state .empty-icon {
+                display: inline-block;
+                font-size: 48px;
+                opacity: 0.4;
+                margin-bottom: 16px;
+            }
+
+            #bookmarks-page-container .empty-state h3 {
+                color: var(--fgColor-default, var(--color-fg-default));
+                margin-bottom: 8px;
+            }
+
+            /* Sync status */
+            .bookmarks-sync-status {
+                font-size: 12px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
                 display: flex;
                 align-items: center;
-                justify-content: center;
                 gap: 6px;
             }
 
-            .list-management-create-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg));
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
+            .bookmarks-sync-status .sync-dot {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
             }
 
-            .bookmarks-stats {
-                padding: 16px 24px 16px 24px;
-                border-top: 1px solid var(--borderColor-muted, var(--color-border-muted));
-                font-size: 12px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+            .bookmarks-sync-status .sync-dot.synced {
+                background: var(--success-fgColor, var(--color-success-fg));
             }
 
-            .bookmarks-sync-section {
-                display: flex;
-                gap: 8px;
-                align-items: center;
+            .bookmarks-sync-status .sync-dot.unsynced {
+                background: var(--attention-fgColor, var(--color-attention-fg));
             }
 
-            .bookmarks-sync-status {
-                font-size: 11px;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-            }
-
-            .bookmarks-sync-help {
-                position: relative;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 20px;
-                height: 20px;
-                cursor: help;
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                margin-right: 3px;
-            }
-
-            .bookmarks-sync-help:hover {
-                color: var(--fgColor-default, var(--color-fg-default));
-            }
-
-            .bookmarks-sync-help-tooltip {
-                position: absolute;
-                bottom: calc(100% + 8px);
-                right: 0;
-                width: 320px;
-                padding: 12px;
-                background-color: var(--overlay-bgColor, var(--color-canvas-overlay));
-                border: 1px solid var(--borderColor-default, var(--color-border-default));
-                border-radius: 6px;
-                box-shadow: var(--shadow-floating-medium);
-                font-size: 12px;
-                line-height: 1.5;
-                color: var(--fgColor-default, var(--color-fg-default));
-                z-index: 10000;
-                display: none;
-            }
-
-            .bookmarks-sync-help:hover .bookmarks-sync-help-tooltip {
-                display: block;
-            }
-
-            .bookmarks-sync-help-tooltip ol {
-                margin: 0;
-                padding-left: 20px;
-            }
-
-            .bookmarks-sync-help-tooltip code {
-                padding: 2px 4px;
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                border-radius: 3px;
-                font-family: monospace;
-                font-size: 11px;
-            }
-
-            /* Configure button styles */
-            .bookmarks-sync-btn {
-                padding: 5px 12px !important;
-                border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border)) !important;
-                border-radius: 6px !important;
-                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg)) !important;
-                color: var(--button-default-fgColor-rest, var(--color-btn-text)) !important;
-                font-size: 12px !important;
-                font-weight: 500 !important;
-                cursor: pointer !important;
-                white-space: nowrap !important;
+            /* Profile tab bookmark item */
+            #profile-bookmarks-tab {
                 display: inline-flex !important;
                 align-items: center !important;
-                justify-content: center !important;
+                gap: 6px !important;
+                padding: 8px 16px !important;
+                font-size: 14px !important;
+                font-weight: 500 !important;
+                color: var(--fgColor-muted, var(--color-fg-muted)) !important;
+                border-radius: 6px !important;
                 text-decoration: none !important;
-                height: 28px !important;
-                line-height: 20px !important;
-                transition: 80ms cubic-bezier(0.33, 1, 0.68, 1) !important;
-                transition-property: color,background-color,box-shadow,border-color !important;
-                position: relative !important;
+                cursor: pointer !important;
+                border: none !important;
+                background: transparent !important;
             }
 
-            .bookmarks-sync-btn:hover {
-                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg)) !important;
-                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border)) !important;
+            #profile-bookmarks-tab:hover {
+                color: var(--fgColor-default, var(--color-fg-default)) !important;
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted)) !important;
                 text-decoration: none !important;
             }
 
-            .bookmarks-sync-btn:focus {
-                outline: 2px solid var(--focus-outlineColor, var(--color-accent-fg)) !important;
-                outline-offset: 2px !important;
+            #profile-bookmarks-tab .Counter {
+                margin-left: 4px;
+                font-size: 12px;
+                font-weight: 400;
+                padding: 0 6px;
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                border-radius: 12px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
             }
 
-            .bookmarks-sync-btn:active {
-                background-color: var(--button-default-bgColor-active, var(--color-btn-active-bg)) !important;
-                border-color: var(--button-default-borderColor-active, var(--color-btn-active-border)) !important;
-            }
-
+            /* Responsive */
             @media (max-width: 768px) {
-                .bookmarks-filter {
+                #bookmarks-page-container {
+                    margin: 16px;
+                    padding: 16px;
+                }
+
+                #bookmarks-page-container .page-header {
                     flex-direction: column;
-                    gap: 12px;
                     align-items: stretch;
                 }
 
-                .bookmarks-filter-left,
-                .bookmarks-filter-right {
-                    width: 100%;
+                #bookmarks-page-container .page-header-actions {
+                    justify-content: stretch;
+                }
+
+                #bookmarks-page-container .page-header-actions .btn {
+                    flex: 1;
                     justify-content: center;
                 }
 
-                .bookmarks-filter-separator-mobile {
+                #bookmarks-page-container .bookmark-item {
+                    flex-wrap: wrap;
+                    gap: 8px;
+                }
+
+                #bookmarks-page-container .bookmark-item .bookmark-info {
                     width: 100%;
-                    height: 1px;
-                    background-color: var(--borderColor-muted, var(--color-border-muted));
-                    margin: 4px 0;
                 }
 
-                .bookmark-info {
-                    padding-right: 80px;
-                }
-
-                .bookmark-right-container {
-                    gap: 4px;
-                }
-            }
-
-            @media (prefers-color-scheme: dark) {
-                .SelectMenu-checkbox:checked {
-                    background-color: #1f6feb;
-                    border-color: #1f6feb;
+                #bookmarks-page-container .bookmark-item .bookmark-actions {
+                    margin-left: auto;
                 }
             }
         `;
@@ -1389,10 +1278,8 @@
             const listContainer = document.createElement('div');
             listContainer.className = 'SelectMenu-list';
 
-            // Get visible lists (excluding DEFAULT_LIST)
             const visibleLists = await Storage.getVisibleLists();
 
-            // Add visible list checkboxes
             for (const listName of visibleLists) {
                 const label = document.createElement('label');
                 label.className = 'SelectMenu-item';
@@ -1410,6 +1297,8 @@
                         await Storage.removeBookmark(repo, listName);
                     }
                     await renderDropdown();
+                    await updateBookmarkButton();
+                    Storage.dispatchUpdate();
                 });
 
                 const text = document.createElement('span');
@@ -1437,6 +1326,7 @@
                 if (newList?.trim()) {
                     await Storage.addList(newList.trim());
                     await renderDropdown();
+                    Storage.dispatchUpdate();
                 }
             });
             footer.appendChild(addButton);
@@ -1462,7 +1352,6 @@
         const bookmarked = await Storage.isBookmarked(repo);
         const totalCount = await Storage.getTotalCount();
 
-        // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
             svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
@@ -1472,13 +1361,11 @@
             }
         }
 
-        // Update text
         const textSpan = mainButton.querySelector('span[data-bookmark-text="true"]');
         if (textSpan) {
             textSpan.textContent = bookmarked ? 'Bookmarked' : 'Bookmark';
         }
 
-        // Update counter
         mainButton.querySelector('[data-component="CounterLabel"]')?.remove();
         mainButton.querySelector('[class*="VisuallyHidden"]')?.remove();
         let counter = mainButton.querySelector('.Counter');
@@ -1494,7 +1381,7 @@
                 counter.className = 'Counter';
                 counter.textContent = countText;
                 counter.setAttribute('title', countTitle);
-                mainButton.appendChild(counter);
+                (mainButton.querySelector('[data-component="text"]') || mainButton).appendChild(counter);
             }
         } else if (counter) {
             counter.remove();
@@ -1507,18 +1394,10 @@
 
         if (document.querySelector('.gh-bookmark-container')) return;
 
-        // GitHub replaced the old .pagehead-actions <ul>/<li> markup with a React
-        // ButtonGroup. The star button now carries a stable data-testid; find it
-        // directly instead of the old form[action*="/star"] lookup, with the old
-        // selector kept as a fallback in case GitHub reverts or A/B tests markup.
         const starButton = document.querySelector('[data-testid="star-button"]')
             || document.querySelector('.pagehead-actions')?.querySelector('form[action*="/star"], form[action*="/unstar"]')?.closest('li')?.querySelector('button[type="submit"]');
         if (!starButton) return;
 
-        // The repo actions row is a <ul>/<li> list (each action — Watch, Fork,
-        // Star — is its own <li>). Insert our own <li> as a sibling before the
-        // star button's <li>, so it sits in the same flex row instead of
-        // nesting inside it (which stacked it vertically on top).
         const starLi = starButton.closest('li');
         if (!starLi || !starLi.parentElement) return;
 
@@ -1526,11 +1405,9 @@
         const bookmarked = await Storage.isBookmarked(repo);
         const totalCount = await Storage.getTotalCount();
 
-        // Create container as a <li> — matches the sibling list items (Watch/Fork/Star)
         const bookmarkContainer = document.createElement('li');
         bookmarkContainer.classList.add('gh-bookmark-container');
 
-        // Clone and customize main button
         const mainButton = starButton.cloneNode(true);
         mainButton.classList.add('gh-bookmark-main-button', 'btn', 'btn-sm', 'gh-bookmark-btn');
         mainButton.type = 'button';
@@ -1539,14 +1416,13 @@
         mainButton.removeAttribute('data-hydro-click');
         mainButton.removeAttribute('data-hydro-click-hmac');
         mainButton.removeAttribute('data-ga-click');
-        mainButton.removeAttribute('data-testid'); // avoid a second element with the same testid
-        mainButton.removeAttribute('aria-describedby'); // pointed at the original button's tooltip node
+        mainButton.removeAttribute('data-testid');
+        mainButton.removeAttribute('aria-describedby');
         mainButton.setAttribute('aria-label', bookmarked ? 'Remove bookmark' : 'Bookmark this repository');
         mainButton.style.borderTopRightRadius = '0';
         mainButton.style.borderBottomRightRadius = '0';
         mainButton.style.borderRight = '1px solid var(--borderColor-default, var(--color-border-default))';
 
-        // Update icon
         const svg = mainButton.querySelector('svg');
         if (svg) {
             svg.outerHTML = bookmarked ? ICONS.bookmarkFilled : ICONS.bookmarkHollow;
@@ -1556,7 +1432,6 @@
             }
         }
 
-        // Update text
         const spans = mainButton.querySelectorAll('span');
         let textFound = false;
         for (const span of spans) {
@@ -1577,14 +1452,9 @@
             }
         }
 
-        // GitHub renders the count multiple ways in the same button (a visible
-        // CounterLabel, a visually-hidden a11y duplicate, and a legacy .Counter
-        // span) — all cloned along with the star count baked in. Strip the
-        // extras so only one number shows, then drive that one .Counter span.
         mainButton.querySelector('[data-component="CounterLabel"]')?.remove();
         mainButton.querySelector('[class*="VisuallyHidden"]')?.remove();
 
-        // Update counter
         let counter = mainButton.querySelector('.Counter');
         if (totalCount > 0) {
             const countText = totalCount.toLocaleString();
@@ -1598,43 +1468,35 @@
                 counter.className = 'Counter';
                 counter.textContent = countText;
                 counter.setAttribute('title', countTitle);
-                // Prefer appending inside the text wrapper so it sits next to
-                // the label like GitHub's own counters do; fall back to the
-                // button itself if that wrapper isn't found.
                 (mainButton.querySelector('[data-component="text"]') || mainButton).appendChild(counter);
             }
         } else if (counter) {
             counter.remove();
         }
 
-        // Proper toggle functionality
         mainButton.onclick = async (e) => {
             e.preventDefault();
             e.stopPropagation();
 
             const bookmarked = await Storage.isBookmarked(repo);
             if (bookmarked) {
-                // Remove from all lists
                 const lists = await Storage.getLists();
                 for (const listName of lists) {
                     if (await Storage.isBookmarkedInList(repo, listName)) {
                         await Storage.removeBookmark(repo, listName);
                     }
                 }
-                // Also check DEFAULT_LIST
                 if (await Storage.isBookmarkedInList(repo, DEFAULT_LIST)) {
                     await Storage.removeBookmark(repo, DEFAULT_LIST);
                 }
             } else {
-                // Add to DEFAULT_LIST (backend only)
                 await Storage.addBookmark(repo, repoUrl, DEFAULT_LIST);
             }
 
-            // Update the button immediately
             await updateBookmarkButton();
+            Storage.dispatchUpdate();
         };
 
-        // Create button group with dropdown
         const btnGroup = document.createElement('div');
         btnGroup.className = 'BtnGroup d-flex';
         btnGroup.appendChild(mainButton);
@@ -1657,7 +1519,6 @@
         btnGroup.appendChild(details);
         bookmarkContainer.appendChild(btnGroup);
 
-        // Close dropdown on outside click
         const closeHandler = (e) => {
             if (e && e.target && typeof e.target.closest === 'function') {
                 if (!details.contains(e.target) && details.hasAttribute('open')) {
@@ -1671,770 +1532,520 @@
     }
 
     // ============================================================================
-    // BOOKMARKS VIEWER MODAL
+    // BOOKMARKS PAGE
     // ============================================================================
 
-    async function renderBookmarksModal(contentEl, filterEl, statsEl, activeFilter = 'All') {
-        // NEW: cancel any previous in-flight render to avoid duplicate filter button rows
-        const token = ++modalRenderToken;
+    function createSortDropdown() {
+        const container = document.createElement('div');
+        container.className = 'sort-dropdown-container';
 
-        contentEl.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
-        filterEl.innerHTML = '';
+        const currentSort = Storage.getSortPreference();
 
-        // Force cache invalidation to ensure fresh data
-        Storage.invalidateCache();
-        const bookmarks = await Storage.getBookmarks();
-        if (token !== modalRenderToken) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn sort-dropdown-btn';
+        btn.innerHTML = `${ICONS.sort} Sort <span class="sort-chevron">${ICONS.chevronDown}</span>`;
+        btn.title = `Sort: ${SORT_OPTIONS[currentSort] || 'Name (A-Z)'}`;
 
-        // Create container for left side (filter buttons)
-        const filterLeft = document.createElement('div');
-        filterLeft.className = 'bookmarks-filter-left';
+        const menu = document.createElement('div');
+        menu.className = 'sort-dropdown-menu';
 
-        // Create container for right side (Manage lists button)
-        const filterRight = document.createElement('div');
-        filterRight.className = 'bookmarks-filter-right';
-
-        // Add "All" button (only in modal) - LEFT SIDE
-        const allBtn = document.createElement('button');
-        allBtn.className = `bookmarks-filter-btn ${'All' === activeFilter ? 'active' : ''}`;
-        allBtn.textContent = 'All';
-        allBtn.dataset.listName = 'All';
-        allBtn.addEventListener('click', () => {
-            renderBookmarksModal(contentEl, filterEl, statsEl, 'All');
-        });
-        filterLeft.appendChild(allBtn);
-
-        // Get visible lists (excluding DEFAULT_LIST)
-        const visibleLists = await Storage.getVisibleLists();
-        if (token !== modalRenderToken) return;
-
-        // Add separator after "All"
-        const separator1 = document.createElement('div');
-        separator1.className = 'bookmarks-filter-separator';
-        filterLeft.appendChild(separator1);
-
-        // Add visible list filter buttons
-        visibleLists.forEach((listName) => {
-            const btn = document.createElement('button');
-            btn.className = `bookmarks-filter-btn ${listName === activeFilter ? 'active' : ''}`;
-            btn.textContent = listName;
-            btn.dataset.listName = listName;
-
-            btn.addEventListener('click', () => {
-                renderBookmarksModal(contentEl, filterEl, statsEl, listName);
-            });
-
-            filterLeft.appendChild(btn);
-        });
-
-        // Add "Manage lists" button to the RIGHT SIDE
-        const settingsBtn = document.createElement('button');
-        settingsBtn.className = 'bookmarks-manage-btn';
-        settingsBtn.innerHTML = ICONS.tag;
-        settingsBtn.title = 'Manage Lists';
-        settingsBtn.addEventListener('click', openListManagementModal);
-        filterRight.appendChild(settingsBtn);
-
-        // Add mobile separator after custom lists
-        if (window.innerWidth <= 768) {
-            const mobileSeparator = document.createElement('div');
-            mobileSeparator.className = 'bookmarks-filter-separator-mobile';
-            filterLeft.appendChild(mobileSeparator);
-        }
-
-        // Append both sides to the filter container (guarded; prevents duplicate copies)
-        if (token !== modalRenderToken) return;
-        filterEl.innerHTML = '';
-        filterEl.appendChild(filterLeft);
-        filterEl.appendChild(filterRight);
-
-        let displayBookmarks = [];
-        if (activeFilter === 'All') {
-            // Show all bookmarks from all lists including DEFAULT_LIST
-            Object.entries(bookmarks).forEach(([listName, items]) => {
-                items.forEach(item => {
-                    const existing = displayBookmarks.find(b => b.repo === item.repo);
-                    if (existing) {
-                        // Only add list name if it's not DEFAULT_LIST
-                        if (listName !== DEFAULT_LIST) {
-                            existing.lists.push(listName);
-                        }
-                    } else {
-                        displayBookmarks.push({
-                            ...item,
-                            lists: listName !== DEFAULT_LIST ? [listName] : []
-                        });
-                    }
-                });
-            });
-        } else if (bookmarks[activeFilter]) {
-            // Show bookmarks from specific list
-            displayBookmarks = bookmarks[activeFilter].map(item => ({
-                ...item,
-                lists: [activeFilter]
-            }));
-        }
-
-        contentEl.innerHTML = '';
-        if (displayBookmarks.length === 0) {
-            contentEl.innerHTML = `
-                <div class="bookmarks-empty">
-                    <div class="bookmarks-empty-icon">${ICONS.bookmarkHollow}</div>
-                    <div class="bookmarks-empty-title">No bookmarks yet</div>
-                    <div class="bookmarks-empty-text">Start bookmarking repositories to see them here!</div>
-                </div>
+        Object.entries(SORT_OPTIONS).forEach(([key, label]) => {
+            const item = document.createElement('button');
+            item.className = `sort-dropdown-item${key === currentSort ? ' active' : ''}`;
+            item.dataset.sort = key;
+            item.innerHTML = `
+                <span>${label}</span>
+                <svg class="check-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+                </svg>
             `;
-            statsEl.querySelector('.bookmarks-stats-text').textContent = 'No bookmarks';
-        } else {
-            const listEl = document.createElement('div');
-            listEl.className = 'bookmarks-list';
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const sortPref = item.dataset.sort;
+                Storage.setSortPreference(sortPref);
+                container.classList.remove('open');
 
-            for (const bookmark of displayBookmarks) {
-                const item = document.createElement('div');
-                item.className = 'bookmark-item';
-                item.dataset.repo = bookmark.repo;
+                menu.querySelectorAll('.sort-dropdown-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                btn.title = `Sort: ${SORT_OPTIONS[sortPref]}`;
 
-                // Get visible lists for this bookmark (excluding DEFAULT_LIST)
-                const visibleLists = await Storage.getVisibleLists();
-                const currentLists = [];
-                for (const listName of visibleLists) {
-                    if (await Storage.isBookmarkedInList(bookmark.repo, listName)) {
-                        currentLists.push(listName);
-                    }
-                }
+                renderBookmarksList();
+            });
+            menu.appendChild(item);
+        });
 
-                // Check if bookmark is in DEFAULT_LIST (backend only)
-                const isInDefaultList = await Storage.isBookmarkedInList(bookmark.repo, DEFAULT_LIST);
-                const showTagIcon = currentLists.length > 0 || isInDefaultList;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.classList.toggle('open');
+        });
 
-                item.innerHTML = `
-                    <div class="bookmark-icon-container">${ICONS.bookmarkHollow}</div>
-                    <div class="bookmark-info">
-                        <div class="bookmark-title">
-                            <a href="${bookmark.repoUrl}" target="_blank" rel="noopener noreferrer">${bookmark.repo}</a>
-                        </div>
-                        <div class="bookmark-description">${bookmark.repoUrl}</div>
-                    </div>
-                    ${showTagIcon ?
-                        `
-                        <div class="bookmark-right-container">
-                            <button class="bookmark-list-tag-icon" title="Manage lists" data-repo="${bookmark.repo}">
-                                ${ICONS.tag}
-                            </button>
-                            <button class="bookmark-action-btn danger" title="Remove bookmark" data-repo="${bookmark.repo}">
-                                ${ICONS.trash}
-                            </button>
-                        </div>
-                    ` : `
-                        <div class="bookmark-right-container">
-                            <button class="bookmark-action-btn danger" title="Remove bookmark" data-repo="${bookmark.repo}">
-                                ${ICONS.trash}
-                            </button>
-                        </div>
-                    `}
-                `;
-
-                // Handle clicks on the bookmark item itself (not the action buttons)
-                item.addEventListener('click', (e) => {
-                    if (e && e.target && typeof e.target.closest === 'function') {
-                        if (!e.target.closest('.bookmark-right-container') &&
-                            !e.target.closest('a') &&
-                            !e.target.closest('.bookmark-list-tag-icon') &&
-                            !e.target.closest('.bookmark-action-btn')) {
-
-                            preventModalReopen = true;
-                            closeBookmarksModal();
-                            window.location.href = bookmark.repoUrl;
-                        }
-                    }
-                });
-
-                // Handle clicks on the actual link
-                const link = item.querySelector('.bookmark-title a');
-                if (link) {
-                    link.addEventListener('click', (e) => {
-                        if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
-                            e.preventDefault(); // Prevent default middle-click/ctrl+click behavior
-                            e.stopPropagation();
-
-                            // Open in new tab but close the modal first
-                            preventModalReopen = true;
-                            closeBookmarksModal();
-
-                            // Open the link in a new tab
-                            const newWindow = window.open(bookmark.repoUrl, '_blank');
-                            if (newWindow) {
-                                newWindow.focus();
-                            }
-
-                            // Reset the prevent flag after a short delay
-                            setTimeout(() => {
-                                preventModalReopen = false;
-                            }, 200);
-                        } else if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
-                            // Normal left click - navigate in same tab
-                            e.preventDefault();
-                            preventModalReopen = true;
-                            closeBookmarksModal();
-                            window.location.href = bookmark.repoUrl;
-                        }
-                    });
-                }
-
-                const tagIcon = item.querySelector('.bookmark-list-tag-icon');
-                if (tagIcon) {
-                    tagIcon.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showListManagementDropdown(tagIcon, bookmark.repo, currentLists);
-                    });
-                }
-
-                const removeBtn = item.querySelector('.bookmark-action-btn.danger');
-                removeBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const repo = removeBtn.dataset.repo;
-
-                    if (confirm(`Remove "${repo}" from all lists?`)) {
-                        const bookmarkItem = removeBtn.closest('.bookmark-item');
-
-                        // Animate removal
-                        bookmarkItem.style.opacity = '0';
-                        bookmarkItem.style.transition = 'opacity 0.2s ease-out';
-                        bookmarkItem.style.pointerEvents = 'none';
-
-                        // Set flag to prevent modal re-render
-                        isLocalDeletion = true;
-
-                        // Remove from all lists including DEFAULT_LIST
-                        const allLists = await Storage.getLists();
-                        for (const listName of allLists) {
-                            if (await Storage.isBookmarkedInList(repo, listName)) {
-                                await Storage.removeBookmark(repo, listName);
-                            }
-                        }
-                        if (await Storage.isBookmarkedInList(repo, DEFAULT_LIST)) {
-                            await Storage.removeBookmark(repo, DEFAULT_LIST);
-                        }
-
-                        Storage.invalidateCache();
-
-                        // Instead of re-rendering the whole modal, remove this specific item
-                        setTimeout(() => {
-                            bookmarkItem.remove();
-
-                            // Check if there are any bookmarks left in the current view
-                            const listEl = contentEl.querySelector('.bookmarks-list');
-                            if (listEl && listEl.children.length === 0) {
-                                // If no bookmarks left, show empty state
-                                contentEl.innerHTML = `
-                                    <div class="bookmarks-empty">
-                                        <div class="bookmarks-empty-icon">${ICONS.bookmarkHollow}</div>
-                                        <div class="bookmarks-empty-title">No bookmarks yet</div>
-                                        <div class="bookmarks-empty-text">Start bookmarking repositories to see them here!</div>
-                                    </div>
-                                `;
-
-                                // Update stats
-                                statsEl.querySelector('.bookmarks-stats-text').textContent = 'No bookmarks';
-                            } else {
-                                // Update the total count in stats
-                                const remainingItems = listEl ? listEl.children.length : 0;
-                                statsEl.querySelector('.bookmarks-stats-text').textContent =
-                                    `${remainingItems} bookmark${remainingItems !== 1 ? 's' : ''}`;
-                            }
-
-                            // Reset local deletion flag
-                            setTimeout(() => {
-                                isLocalDeletion = false;
-                            }, 300);
-
-                            // Update the main bookmark button counter but DON'T trigger modal refresh
-                            updateBookmarkButton();
-
-                            // Manually update the profile tab counter if it exists
-                            const profileTab = document.querySelector('.gh-bookmarks-tab');
-                            if (profileTab) {
-                                const counterSpan = profileTab.querySelector('span[title*="bookmark"]');
-                                if (counterSpan) {
-                                    Storage.getTotalCount().then(totalCount => {
-                                        counterSpan.textContent = totalCount.toString();
-                                        counterSpan.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
-                                    });
-                                }
-                            }
-                        }, 200); // Wait for animation to complete
-                    }
-                });
-
-                listEl.appendChild(item);
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                container.classList.remove('open');
             }
+        });
 
-            contentEl.appendChild(listEl);
-
-            const total = displayBookmarks.length;
-            statsEl.querySelector('.bookmarks-stats-text').textContent =
-                `${total} bookmark${total !== 1 ? 's' : ''}`;
-        }
+        container.appendChild(btn);
+        container.appendChild(menu);
+        return container;
     }
 
-    function showListManagementDropdown(targetElement, repo, currentLists) {
-        const existing = document.querySelector('.bookmark-list-dropdown');
-        if (existing) {
-            if (existing.dataset.targetRepo === repo) {
-                existing.remove();
-                return;
-            }
-            existing.remove();
-        }
+    function createMoveListMenu(repo, currentList, buttonElement) {
+        const menu = document.createElement('div');
+        menu.className = 'move-list-menu';
 
-        const dropdown = document.createElement('div');
-        dropdown.className = 'bookmark-list-dropdown';
-        dropdown.dataset.targetRepo = repo;
-
-        (async () => {
-            // Get all lists including DEFAULT_LIST for backend management
+        const renderMenu = async () => {
             const allLists = await Storage.getLists();
-            const bookmarks = await Storage.getBookmarks();
-
-            let repoUrl = '';
-            for (const [listName, items] of Object.entries(bookmarks)) {
-                const found = items.find(b => b.repo === repo);
-                if (found) {
-                    repoUrl = found.repoUrl;
-                    break;
-                }
-            }
+            menu.innerHTML = '';
 
             for (const listName of allLists) {
-                const item = document.createElement('label');
-                item.className = 'bookmark-list-dropdown-item';
+                const item = document.createElement('button');
+                item.className = `move-list-item${listName === currentList ? ' disabled' : ''}`;
+                item.textContent = listName === DEFAULT_LIST ? 'Unassigned' : listName;
+                item.disabled = listName === currentList;
 
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-
-                // Check if bookmark is in this list
-                const isInList = listName === DEFAULT_LIST ?
-                    await Storage.isBookmarkedInList(repo, DEFAULT_LIST) :
-                    currentLists.includes(listName);
-
-                checkbox.checked = isInList;
-
-                // For DEFAULT_LIST, show it but with lock icon
-                if (listName === DEFAULT_LIST) {
-                    checkbox.disabled = true;
-                    checkbox.title = 'Default list (cannot be modified)';
-                }
-
-                checkbox.addEventListener('change', async (e) => {
-                    if (listName === DEFAULT_LIST) return;
-
+                item.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (e.target.checked) {
-                        await Storage.addBookmark(repo, repoUrl, listName);
-                    } else {
-                        await Storage.removeBookmark(repo, listName);
+                    if (listName === currentList) return;
+
+                    const data = await Storage.getData();
+                    // Find the bookmark in the current list
+                    const bookmark = data.bookmarks[currentList]?.find(b => b.repo === repo);
+                    if (!bookmark) return;
+
+                    // Remove from current list
+                    data.bookmarks[currentList] = data.bookmarks[currentList].filter(b => b.repo !== repo);
+                    if (data.bookmarks[currentList].length === 0) {
+                        delete data.bookmarks[currentList];
                     }
 
-                    // Update current lists
-                    const newLists = [];
-                    for (const list of allLists) {
-                        if (list === DEFAULT_LIST) continue;
-                        if (await Storage.isBookmarkedInList(repo, list)) {
-                            newLists.push(list);
-                        }
+                    // Add to new list
+                    if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
+                    if (!data.bookmarks[listName].some(b => b.repo === repo)) {
+                        data.bookmarks[listName].push(bookmark);
                     }
 
-                    // Update the tag icon
-                    const rightContainer = document.querySelector(`.bookmark-item[data-repo="${repo}"] .bookmark-right-container`);
-                    if (rightContainer) {
-                        const isInDefaultList = await Storage.isBookmarkedInList(repo, DEFAULT_LIST);
-                        const showTagIcon = newLists.length > 0 || isInDefaultList;
+                    Storage.invalidateCache();
+                    await Storage.saveToGist(data);
+                    Storage.dispatchUpdate();
 
-                        if (showTagIcon) {
-                            if (!rightContainer.querySelector('.bookmark-list-tag-icon')) {
-                                const tagIcon = document.createElement('button');
-                                tagIcon.className = 'bookmark-list-tag-icon';
-                                tagIcon.title = 'Manage lists';
-                                tagIcon.setAttribute('data-repo', repo);
-                                tagIcon.innerHTML = ICONS.tag;
-                                tagIcon.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    showListManagementDropdown(tagIcon, repo, newLists);
-                                });
-
-                                rightContainer.insertBefore(tagIcon, rightContainer.firstChild);
-                            }
-                        } else {
-                            const tagIcon = rightContainer.querySelector('.bookmark-list-tag-icon');
-                            if (tagIcon) {
-                                tagIcon.remove();
-                            }
-                        }
-                    }
+                    menu.classList.remove('open');
+                    renderBookmarksPage();
+                    updateBookmarkButton();
                 });
 
-                const text = document.createElement('span');
-                text.className = 'SelectMenu-item-text';
-
-                if (listName === DEFAULT_LIST) {
-                    text.innerHTML = `${listName} ${ICONS.lock}`;
-                } else {
-                    text.textContent = listName;
-                }
-
-                item.appendChild(checkbox);
-                item.appendChild(text);
-                dropdown.appendChild(item);
+                menu.appendChild(item);
             }
-
-            const rect = targetElement.getBoundingClientRect();
-            dropdown.style.left = rect.left + 'px';
-            dropdown.style.top = (rect.bottom + 4) + 'px';
-
-            document.body.appendChild(dropdown);
-
-            const closeDropdown = (e) => {
-                if (e && e.target) {
-                    if (!dropdown.contains(e.target) && e.target !== targetElement) {
-                        dropdown.remove();
-                        document.removeEventListener('click', closeDropdown);
-                    }
-                }
-            };
-            setTimeout(() => document.addEventListener('click', closeDropdown), 0);
-        })();
-    }
-
-    function openListManagementModal() {
-        const overlay = document.createElement('div');
-        overlay.className = 'bookmarks-modal-overlay';
-
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeListManagementModal();
-            }
-        });
-
-        const modal = document.createElement('div');
-        modal.className = 'list-management-modal';
-
-        const header = document.createElement('div');
-        header.className = 'list-management-header';
-
-        const title = document.createElement('h3');
-        title.className = 'list-management-title';
-        title.textContent = 'Manage Lists';
-
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'bookmarks-modal-close';
-        closeBtn.innerHTML = ICONS.close;
-        closeBtn.addEventListener('click', closeListManagementModal);
-
-        header.appendChild(title);
-        header.appendChild(closeBtn);
-
-        const content = document.createElement('div');
-        content.className = 'list-management-content';
-
-        renderListManagementContent(content);
-
-        const footer = document.createElement('div');
-        footer.className = 'list-management-footer';
-
-        const createBtn = document.createElement('button');
-        createBtn.className = 'list-management-create-btn';
-        createBtn.innerHTML = `${ICONS.plus} Create List`;
-        createBtn.addEventListener('click', async () => {
-            const newList = prompt('Enter new list name:');
-            if (newList?.trim()) {
-                if (await Storage.addList(newList.trim())) {
-                    await renderListManagementContent(content);
-                    Storage.dispatchUpdate();
-                } else {
-                    alert('A list with that name already exists.');
-                }
-            }
-        });
-        footer.appendChild(createBtn);
-
-        modal.appendChild(header);
-        modal.appendChild(content);
-        modal.appendChild(footer);
-        overlay.appendChild(modal);
-
-        document.body.appendChild(overlay);
-
-        const escapeHandler = (e) => {
-            if (e.key === 'Escape') closeListManagementModal();
         };
-        document.addEventListener('keydown', escapeHandler);
-        overlay.escapeHandler = escapeHandler;
+
+        renderMenu();
+
+        // Position menu near the button
+        const rect = buttonElement.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.left = `${Math.min(rect.left, window.innerWidth - 200)}px`;
+
+        // Close on outside click
+        const closeHandler = (e) => {
+            if (!menu.contains(e.target) && e.target !== buttonElement) {
+                menu.classList.remove('open');
+                document.removeEventListener('click', closeHandler);
+                if (menu.parentElement) menu.remove();
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 0);
+
+        return menu;
     }
 
-    async function renderListManagementContent(content) {
-        content.innerHTML = '<div class="bookmarks-loading">Loading...</div>';
+    async function renderBookmarksList() {
+        const container = document.getElementById('bookmarks-list-container');
+        if (!container) return;
 
-        const allLists = await Storage.getLists();
         const bookmarks = await Storage.getBookmarks();
+        const allLists = await Storage.getLists();
+        const sortPref = Storage.getSortPreference();
+        const isManualSort = sortPref === 'manual';
 
-        content.innerHTML = '';
+        // Get all lists that have bookmarks
+        const listsWithBookmarks = allLists.filter(list => bookmarks[list] && bookmarks[list].length > 0);
 
-        allLists.forEach((listName, index) => {
-            const item = document.createElement('div');
-            item.className = 'list-management-item';
-            if (listName === DEFAULT_LIST) {
-                item.classList.add('default-list');
-            }
-            item.draggable = listName !== DEFAULT_LIST;
-            item.dataset.listName = listName;
-            item.dataset.index = index;
-
-            const dragHandle = document.createElement('div');
-            dragHandle.className = 'list-management-item-drag-handle';
-            dragHandle.innerHTML = ICONS.gripVertical;
-            if (listName === DEFAULT_LIST) {
-                dragHandle.style.opacity = '0.3';
-                dragHandle.style.cursor = 'not-allowed';
-            }
-
-            const name = document.createElement('div');
-            name.className = 'list-management-item-name';
-            if (listName === DEFAULT_LIST) {
-                name.innerHTML = `${listName} ${ICONS.lock}`;
-            } else {
-                name.textContent = listName;
-            }
-
-            const count = document.createElement('div');
-            count.className = 'list-management-item-count';
-            const itemCount = bookmarks[listName]?.length || 0;
-            count.textContent = `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
-
-            const actions = document.createElement('div');
-            actions.className = 'list-management-item-actions';
-
-            const renameBtn = document.createElement('button');
-            renameBtn.className = 'list-management-action-btn';
-            renameBtn.innerHTML = ICONS.pencil;
-            renameBtn.title = 'Rename list';
-            renameBtn.disabled = listName === DEFAULT_LIST;
-            renameBtn.addEventListener('click', async () => {
-                const newName = prompt(`Rename list "${listName}" to:`, listName);
-                if (newName?.trim() && newName.trim() !== listName) {
-                    if (await Storage.renameList(listName, newName.trim())) {
-                        await renderListManagementContent(content);
-                        Storage.dispatchUpdate();
-                    }
-                }
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'list-management-action-btn danger';
-            deleteBtn.innerHTML = ICONS.trash;
-            deleteBtn.title = 'Delete list';
-            deleteBtn.disabled = listName === DEFAULT_LIST;
-            deleteBtn.addEventListener('click', async () => {
-                const itemCount = bookmarks[listName]?.length || 0;
-                const message = itemCount > 0
-                    ? `Delete list "${listName}" and remove ${itemCount} bookmark${itemCount !== 1 ? 's' : ''}?`
-                    : `Delete list "${listName}"?`;
-
-                if (confirm(message)) {
-                    if (await Storage.deleteList(listName)) {
-                        await renderListManagementContent(content);
-                        Storage.dispatchUpdate();
-                    }
-                }
-            });
-
-            actions.appendChild(renameBtn);
-            actions.appendChild(deleteBtn);
-
-            item.appendChild(dragHandle);
-            item.appendChild(name);
-            item.appendChild(count);
-            item.appendChild(actions);
-
-            content.appendChild(item);
-        });
-    }
-
-    function closeListManagementModal() {
-        const overlays = document.querySelectorAll('.bookmarks-modal-overlay');
-        overlays.forEach(overlay => {
-            if (overlay.querySelector('.list-management-modal')) {
-                if (overlay.escapeHandler) {
-                    document.removeEventListener('keydown', overlay.escapeHandler);
-                }
-                overlay.remove();
-            }
-        });
-    }
-
-    function openBookmarksModal() {
-        // Check if we should prevent modal from opening
-        if (preventModalReopen) {
-            preventModalReopen = false;
+        if (listsWithBookmarks.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">${ICONS.bookmarkHollow}</div>
+                    <h3>No bookmarks yet</h3>
+                    <p>Start bookmarking repositories to see them here!</p>
+                    <p style="font-size:12px;margin-top:12px;color:var(--fgColor-muted, var(--color-fg-muted));">
+                        Click the bookmark button on any repository page to add it.
+                    </p>
+                </div>
+            `;
             return;
         }
 
-        if (modalOpen) return;
-        modalOpen = true;
-        Storage.setModalOpen(true);
+        let html = '';
 
-        // NEW: cancel any in-flight modal render from the previous overlay/navigation
-        modalRenderToken++;
+        for (const listName of listsWithBookmarks) {
+            const items = bookmarks[listName] || [];
+            if (items.length === 0) continue;
 
-        const overlay = document.createElement('div');
-        overlay.className = 'bookmarks-modal-overlay';
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                closeBookmarksModal();
+            // Sort items (manual keeps stored order)
+            const sortedItems = Sorter.sortBookmarks(items, sortPref);
+
+            const isDefault = listName === DEFAULT_LIST;
+            const listLabel = isDefault ? 'Unassigned' : listName;
+
+            html += `
+                <div class="bookmark-category" data-list="${listName}">
+                    <div class="bookmark-category-header" data-category="${listName}">
+                        <h3>
+                            ${ICONS.tag}
+                            ${listLabel}
+                            <span class="category-count">${items.length}</span>
+                        </h3>
+                        <span class="collapse-icon">${ICONS.chevronDown}</span>
+                    </div>
+                    <div class="bookmark-category-body" data-list="${listName}">
+            `;
+
+            for (const item of sortedItems) {
+                // Get tags for this bookmark
+                const tags = [];
+                for (const list of allLists) {
+                    if (list !== listName && bookmarks[list]?.some(b => b.repo === item.repo)) {
+                        tags.push(list === DEFAULT_LIST ? 'Unassigned' : list);
+                    }
+                }
+
+                html += `
+                    <div class="bookmark-item" data-repo="${item.repo}" data-list="${listName}">
+                        <span class="drag-handle" title="Drag to reorder${isManualSort ? '' : ' (switch to Manual sort to reorder)'}">${ICONS.grabber}</span>
+                        <div class="bookmark-info">
+                            <a href="${item.repoUrl}" target="_blank" rel="noopener noreferrer">${item.repo}</a>
+                            ${tags.length > 0 ? `<div class="bookmark-tags">${tags.map(t => `<span class="bookmark-tag">${t}</span>`).join('')}</div>` : ''}
+                        </div>
+                        <div class="bookmark-actions">
+                            <button class="move-btn" data-repo="${item.repo}" data-list="${listName}" title="Move to another list">
+                                <svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1-1.06 1.06L9.5 5.31v5.44l1.97-1.97a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0l-3.25-3.25a.75.75 0 1 1 1.06-1.06L7.5 10.75V5.31L5.53 7.28a.75.75 0 0 1-1.06-1.06l3.25-3.25Z"></path></svg>
+                            </button>
+                            <button class="remove-btn" data-repo="${item.repo}" data-list="${listName}" title="Remove from this list">${ICONS.trash}</button>
+                        </div>
+                    </div>
+                `;
             }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+
+        // Attach event listeners
+        attachListEventListeners();
+
+        // Initialize drag-and-drop
+        initDragAndDrop();
+    }
+
+    function initDragAndDrop() {
+        const bodies = document.querySelectorAll('.bookmark-category-body');
+        const sortPref = Storage.getSortPreference();
+        const isManualSort = sortPref === 'manual';
+
+        bodies.forEach(body => {
+            if (typeof Sortable === 'undefined') return;
+
+            Sortable.create(body, {
+                group: 'bookmarks',
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'dragging',
+                dragClass: 'dragging',
+                disabled: !isManualSort,
+                onEnd: async (evt) => {
+                    const fromList = evt.from.dataset.list;
+                    const toList = evt.to.dataset.list;
+                    const repo = evt.item.dataset.repo;
+
+                    if (!repo) return;
+
+                    const data = await Storage.getData();
+
+                    // Remove from source list
+                    if (data.bookmarks[fromList]) {
+                        data.bookmarks[fromList] = data.bookmarks[fromList].filter(b => b.repo !== repo);
+                    }
+
+                    // Get the bookmark object
+                    let bookmark = null;
+                    // Try to find it in the original source (before removal)
+                    const originalFromList = evt.from.dataset.list;
+                    const allBookmarks = await Storage.getBookmarks();
+                    // Search all lists for the bookmark
+                    for (const list of Object.keys(allBookmarks)) {
+                        const found = allBookmarks[list]?.find(b => b.repo === repo);
+                        if (found) {
+                            bookmark = found;
+                            break;
+                        }
+                    }
+
+                    if (!bookmark) return;
+
+                    // Rebuild the target list order based on DOM order
+                    const targetBody = evt.to;
+                    const newOrder = [];
+                    targetBody.querySelectorAll('.bookmark-item').forEach(el => {
+                        newOrder.push(el.dataset.repo);
+                    });
+
+                    // Ensure the target list exists
+                    if (!data.bookmarks[toList]) data.bookmarks[toList] = [];
+
+                    // Build the reordered array from existing data + moved item
+                    const targetExisting = data.bookmarks[toList].filter(b => b.repo !== repo);
+                    const reordered = [];
+                    newOrder.forEach(r => {
+                        if (r === repo) {
+                            reordered.push(bookmark);
+                        } else {
+                            const found = targetExisting.find(b => b.repo === r);
+                            if (found) reordered.push(found);
+                        }
+                    });
+                    data.bookmarks[toList] = reordered;
+
+                    // Clean up empty source list (unless it's the same as target)
+                    if (fromList !== toList && data.bookmarks[fromList] && data.bookmarks[fromList].length === 0) {
+                        delete data.bookmarks[fromList];
+                    }
+
+                    Storage.invalidateCache();
+                    await Storage.saveToGist(data);
+                    Storage.dispatchUpdate();
+
+                    // Re-render to reflect changes (especially if a list became empty)
+                    renderBookmarksPage();
+                }
+            });
+        });
+    }
+
+    function attachListEventListeners() {
+        // Collapse/expand categories
+        document.querySelectorAll('.bookmark-category-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const body = header.parentElement.querySelector('.bookmark-category-body');
+                const icon = header.querySelector('.collapse-icon');
+                if (body) {
+                    body.classList.toggle('collapsed');
+                    if (icon) {
+                        icon.classList.toggle('collapsed');
+                    }
+                }
+            });
         });
 
-        const modal = document.createElement('div');
-        modal.className = 'bookmarks-modal';
+        // Remove bookmark
+        document.querySelectorAll('.remove-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const repo = btn.getAttribute('data-repo');
+                const list = btn.getAttribute('data-list');
 
-        const header = document.createElement('div');
-        header.className = 'bookmarks-modal-header';
+                if (confirm(`Remove "${repo}" from "${list === DEFAULT_LIST ? 'Unassigned' : list}"?`)) {
+                    await Storage.removeBookmark(repo, list);
+                    Storage.dispatchUpdate();
+                    renderBookmarksPage();
+                    updateBookmarkButton();
+                }
+            });
+        });
 
-        const title = document.createElement('h2');
-        title.className = 'bookmarks-modal-title';
-        title.innerHTML = `<span>Your Bookmarks</span>`;
+        // Move to another list
+        document.querySelectorAll('.move-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const repo = btn.getAttribute('data-repo');
+                const currentList = btn.getAttribute('data-list');
 
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'bookmarks-modal-close';
-        closeBtn.innerHTML = ICONS.close;
-        closeBtn.addEventListener('click', closeBookmarksModal);
+                // Remove any existing move menu
+                document.querySelectorAll('.move-list-menu').forEach(m => m.remove());
 
-        header.appendChild(title);
-        header.appendChild(closeBtn);
+                const menu = createMoveListMenu(repo, currentList, btn);
+                document.body.appendChild(menu);
+                menu.classList.add('open');
+            });
+        });
 
-        const filterContainer = document.createElement('div');
-        filterContainer.className = 'bookmarks-filter';
+        // Search filter
+        const searchInput = document.getElementById('bookmark-search');
+        if (searchInput) {
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+            newSearchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.bookmark-category').forEach(category => {
+                    let hasVisibleItems = false;
+                    category.querySelectorAll('.bookmark-item').forEach(item => {
+                        const repo = item.getAttribute('data-repo')?.toLowerCase() || '';
+                        const match = repo.includes(term);
+                        item.style.display = match ? 'flex' : 'none';
+                        if (match) hasVisibleItems = true;
+                    });
+                    category.style.display = hasVisibleItems ? 'block' : 'none';
+                });
+            });
+        }
+    }
 
-        const content = document.createElement('div');
-        content.className = 'bookmarks-modal-content';
+    async function renderBookmarksPage() {
+        const mainContent = document.querySelector('main') || document.querySelector('.application-main') || document.querySelector('#js-pjax-container');
+        if (!mainContent) return;
 
-        const stats = document.createElement('div');
-        stats.className = 'bookmarks-stats';
+        // Check if already rendered
+        if (document.getElementById('bookmarks-page-container')) {
+            // If it exists, just re-render the list portion
+            await renderBookmarksList();
+            return;
+        }
 
-        const statsText = document.createElement('span');
-        statsText.className = 'bookmarks-stats-text';
-        stats.appendChild(statsText);
-
-        const syncSection = document.createElement('div');
-        syncSection.className = 'bookmarks-sync-section';
-
-        const syncStatus = document.createElement('span');
-        syncStatus.className = 'bookmarks-sync-status';
+        const totalCount = await Storage.getTotalCount();
         const token = Storage.getSyncToken();
         const gistId = Storage.getGistId();
-        syncStatus.textContent = (token && gistId) ? '✓ Synced' : 'Configure sync';
 
-        const configBtn = document.createElement('button');
-        configBtn.className = 'bookmarks-sync-btn';
-        configBtn.textContent = 'Configure';
-        configBtn.addEventListener('click', () => configureSyncToken(syncStatus));
+        let html = `
+            <div id="bookmarks-page-container">
+                <div class="page-header">
+                    <h2>
+                        ${ICONS.bookmarkHollow}
+                        Bookmarks
+                        <span style="font-size:14px;font-weight:400;color:var(--fgColor-muted, var(--color-fg-muted));margin-left:4px;">(${totalCount})</span>
+                    </h2>
+                    <div class="page-header-actions">
+                        <div class="bookmarks-sync-status">
+                            <span class="sync-dot ${(token && gistId) ? 'synced' : 'unsynced'}"></span>
+                            ${(token && gistId) ? 'Synced' : 'Configure sync'}
+                        </div>
+                        <div id="sort-dropdown-placeholder"></div>
+                        <button id="bookmarks-configure-sync" class="btn">${ICONS.sync} Sync</button>
+                        <button id="bookmarks-export" class="btn">${ICONS.download} Export</button>
+                        <button id="bookmarks-import" class="btn">${ICONS.upload} Import</button>
+                    </div>
+                </div>
 
-        const helpIcon = document.createElement('div');
-        helpIcon.className = 'bookmarks-sync-help';
-        helpIcon.innerHTML = `
-            ${ICONS.questionMark}
-            <div class="bookmarks-sync-help-tooltip">
-                <p><strong>Instructions:</strong></p>
-                <ol>
-                    <li>Click "Configure"</li>
-                    <li>Create token at <code>github.com/settings/tokens/new</code></li>
-                    <li>Grant only the <strong>gist</strong> scope</li>
-                    <li>Paste the token when prompted</li>
-                </ol>
+                <div class="search-container">
+                    ${ICONS.search}
+                    <input type="text" id="bookmark-search" placeholder="Filter bookmarks by repository name..." autofocus>
+                </div>
+
+                <div id="bookmarks-list-container"></div>
             </div>
         `;
 
-        syncSection.appendChild(syncStatus);
-        syncSection.appendChild(helpIcon);
-        syncSection.appendChild(configBtn);
-        stats.appendChild(syncSection);
+        mainContent.innerHTML = html;
+        document.title = 'Bookmarks - GitHub';
 
-        modal.appendChild(header);
-        modal.appendChild(filterContainer);
-        modal.appendChild(content);
-        modal.appendChild(stats);
-        overlay.appendChild(modal);
+        // Insert the sort dropdown
+        const sortPlaceholder = document.getElementById('sort-dropdown-placeholder');
+        if (sortPlaceholder) {
+            sortPlaceholder.replaceWith(createSortDropdown());
+        }
 
-        renderBookmarksModal(content, filterContainer, stats, 'All');
+        // Render the list
+        await renderBookmarksList();
 
-        document.body.appendChild(overlay);
-        document.body.style.overflow = 'hidden';
+        // --- Event Listeners for header buttons ---
 
-        const escapeHandler = (e) => {
-            if (e.key === 'Escape') closeBookmarksModal();
-        };
-        document.addEventListener('keydown', escapeHandler);
-        overlay.escapeHandler = escapeHandler;
-    }
+        // Configure sync
+        document.getElementById('bookmarks-configure-sync')?.addEventListener('click', async () => {
+            const currentToken = Storage.getSyncToken();
+            const message = currentToken
+                ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
+                : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: ' + SYNC_HELP_URL;
 
-    // UPDATED: Now handles async backup discovery, status updates, and reload on success
-    async function configureSyncToken(statusElement) {
-        const currentToken = Storage.getSyncToken();
-        const message = currentToken
-            ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
-            : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: ' + SYNC_HELP_URL;
+            const token = prompt(message, '');
 
-        const token = prompt(message, '');
+            if (token !== null && token.trim() !== '') {
+                const cleanToken = token.trim();
+                Storage.setSyncToken(cleanToken);
 
-        if (token !== null && token.trim() !== '') {
-            const cleanToken = token.trim();
-            Storage.setSyncToken(cleanToken);
+                const syncBtn = document.getElementById('bookmarks-configure-sync');
+                const originalText = syncBtn.innerHTML;
+                syncBtn.innerHTML = '⌛ Searching...';
 
-            if (statusElement) statusElement.textContent = '⌛ Searching for backup...';
+                const existingGistId = await Storage.findExistingGist(cleanToken);
 
-            const existingGistId = await Storage.findExistingGist(cleanToken);
-
-            if (existingGistId) {
-                if (statusElement) statusElement.textContent = '♻️ Restoring...';
-
-                Storage.setGistId(existingGistId);
-
-                const data = await Storage.fetchFromGist();
-
-                if (data) {
-                    alert(`Found existing bookmark backup! \n\nRestoring ${Object.keys(data.bookmarks || {}).length} lists...`);
-                    window.location.reload();
+                if (existingGistId) {
+                    Storage.setGistId(existingGistId);
+                    const data = await Storage.fetchFromGist();
+                    if (data) {
+                        alert('Found existing bookmark backup! Restored successfully.');
+                        renderBookmarksPage();
+                        updateBookmarkButton();
+                    } else {
+                        alert('Found a backup Gist, but could not read the data.');
+                    }
                 } else {
-                     if (statusElement) statusElement.textContent = '⚠ Restore failed';
-                     alert('Found a backup Gist, but could not read the data. Check console for details.');
+                    alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically when you add bookmarks.');
                 }
-            } else {
-                if (statusElement) statusElement.textContent = '✓ Token configured';
-                alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically the next time you bookmark a repository.');
+
+                syncBtn.innerHTML = originalText;
+                renderBookmarksPage();
             }
-        }
+        });
+
+        // Export
+        document.getElementById('bookmarks-export')?.addEventListener('click', async () => {
+            const data = await Storage.getData();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const a = document.createElement('a');
+            a.href = dataStr;
+            a.download = "github_bookmarks.json";
+            a.click();
+        });
+
+        // Import
+        document.getElementById('bookmarks-import')?.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.readAsText(file, 'UTF-8');
+                reader.onload = async (rev) => {
+                    try {
+                        const content = JSON.parse(rev.target.result);
+                        if (content.bookmarks && content.lists) {
+                            const currentData = await Storage.getData();
+                            const merged = await Storage.mergeData(currentData, content);
+                            await Storage.saveToGist(merged);
+                            Storage.invalidateCache();
+                            renderBookmarksPage();
+                            updateBookmarkButton();
+                            alert('Bookmarks imported successfully!');
+                        } else {
+                            alert('Invalid file format. Expected bookmarks and lists.');
+                        }
+                    } catch (err) {
+                        alert('Invalid JSON file.');
+                    }
+                };
+            };
+            input.click();
+        });
     }
 
-    function closeBookmarksModal() {
-        // NEW: cancel any in-flight render to prevent late DOM appends (duplicate button rows)
-        modalRenderToken++;
+    // ============================================================================
+    // PROFILE DROPDOWN & TAB INTEGRATION
+    // ============================================================================
 
-        const modal = document.querySelector('.bookmarks-modal-overlay');
-        if (modal) {
-            document.removeEventListener('keydown', modal.escapeHandler);
-            modal.remove();
-            modalOpen = false;
-            Storage.setModalOpen(false);
-            document.body.style.overflow = '';
-
-            // Don't reset preventModalReopen immediately - it will be reset by the navigation handler
-        }
-    }
-
-    async function addBookmarksToProfileMenu() {
-        // NOTE: '?tab=repositories' also matches the profile page's own UnderlineNav
-        // tab (not just the avatar dropdown item), so querySelector() could grab the
-        // wrong element. Scan all matches and only accept the one inside the
-        // dropdown's prc-ActionList <ul>.
+    function addBookmarksToProfileMenu() {
         const candidates = document.querySelectorAll('a[href*="?tab=repositories"]');
         let reposLink = null;
         let parentList = null;
@@ -2480,7 +2091,9 @@
         bookmarksLink.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            openBookmarksModal();
+
+            window.history.pushState(null, '', BOOKMARKS_PAGE_PATH);
+            renderBookmarksPage();
 
             document.querySelectorAll('details[open]').forEach(details => {
                 details.removeAttribute('open');
@@ -2490,7 +2103,7 @@
         reposLi.parentElement.insertBefore(bookmarksLi, reposLi.nextSibling);
     }
 
-    async function addBookmarksTabToProfilePage() {
+    function addBookmarksTabToProfilePage() {
         const profileNav = document.querySelector('nav.UnderlineNav, nav[aria-label="User"]');
         if (!profileNav || profileNav.querySelector('.gh-bookmarks-tab')) return;
 
@@ -2539,16 +2152,19 @@
             if (text === 'Stars') {
                 span.textContent = 'Bookmarks';
             } else if (text.match(/^\d+$/)) {
-                const totalCount = await Storage.getTotalCount();
-                span.textContent = totalCount.toString();
-                span.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+                Storage.getTotalCount().then(totalCount => {
+                    span.textContent = totalCount.toString();
+                    span.setAttribute('title', `${totalCount} bookmark${totalCount !== 1 ? 's' : ''}`);
+                });
             }
         }
 
         bookmarksLink.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            openBookmarksModal();
+
+            window.history.pushState(null, '', BOOKMARKS_PAGE_PATH);
+            renderBookmarksPage();
         });
 
         starsContainer.parentElement.insertBefore(bookmarksContainer, starsContainer);
@@ -2571,32 +2187,23 @@
             }
         }
 
-        // Only re-render modal if it's open AND we're not in the middle of a local deletion
-        if (modalOpen && !preventModalReopen && !isLocalDeletion) {
-            const modal = document.querySelector('.bookmarks-modal');
-            if (modal) {
-                const content = modal.querySelector('.bookmarks-modal-content');
-                const filter = modal.querySelector('.bookmarks-filter');
-                const stats = modal.querySelector('.bookmarks-stats');
+        if (Repo.isBookmarksPage()) {
+            renderBookmarksPage();
+        }
+    });
 
-                // Check if there's a fade-out animation happening
-                const fadingItems = document.querySelectorAll('.bookmark-item[style*="opacity: 0"]');
-                if (content && filter && stats && fadingItems.length === 0) {
-                    const activeFilter = filter.querySelector('.bookmarks-filter-btn.active');
-                    await renderBookmarksModal(content, filter, stats, activeFilter?.textContent || 'All');
-                }
-            }
+    window.addEventListener('popstate', () => {
+        if (Repo.isBookmarksPage()) {
+            renderBookmarksPage();
         }
     });
 
     async function init() {
         injectStyles();
 
-        // Check if modal was open before page refresh
-        if (Storage.getModalOpen()) {
-            setTimeout(() => {
-                openBookmarksModal();
-            }, 1000);
+        if (Repo.isBookmarksPage()) {
+            setTimeout(renderBookmarksPage, 100);
+            return;
         }
 
         if (Repo.isRepoPage()) {
@@ -2623,7 +2230,7 @@
     async function start() {
         const token = Storage.getSyncToken();
         if (!token) {
-            console.log('GitHub Bookmarks: No sync token configured. Please configure in the bookmarks modal.');
+            console.log('GitHub Bookmarks: No sync token configured. Configure via the bookmarks page.');
         } else {
             await Storage.initialize();
         }
@@ -2643,7 +2250,11 @@
             const url = location.href;
             if (url !== lastUrl) {
                 lastUrl = url;
-                setTimeout(init, 500);
+                if (Repo.isBookmarksPage()) {
+                    setTimeout(renderBookmarksPage, 100);
+                } else {
+                    setTimeout(init, 500);
+                }
             }
         }).observe(document, { subtree: true, childList: true });
     }
