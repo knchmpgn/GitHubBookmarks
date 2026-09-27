@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.6.1
+// @version      6.6.2
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -71,12 +71,6 @@
         cache: null,
         cacheTimestamp: 0,
 
-        // Sync status tracking
-        // 'unknown'   — no operation attempted yet this session
-        // 'unsynced'  — no token/gist configured
-        // 'syncing'   — a fetch or save is in flight
-        // 'synced'    — last operation succeeded
-        // 'failed'    — last operation failed
         lastSyncStatus: 'unknown',
         lastSyncError: '',
 
@@ -125,8 +119,6 @@
             this.cacheTimestamp = 0;
         },
 
-        // Shallow-clone the top-level data structure so that callers cannot
-        // accidentally mutate the cache via the object returned by getData().
         _cloneData(data) {
             if (!data) return data;
             return {
@@ -146,8 +138,6 @@
             };
         },
 
-        // Ensures every list has a valid manualOrder array that matches its
-        // membership.
         normalizeManualOrder(data) {
             if (!data || !data.bookmarks) return { data, changed: false };
 
@@ -196,7 +186,6 @@
             return { data, changed };
         },
 
-        // Ensures each repo appears in exactly one list.
         deduplicateBookmarks(data) {
             if (!data || !data.bookmarks) return { data, changed: false };
 
@@ -741,8 +730,6 @@
                 });
             }
 
-            // Local manualOrder takes precedence when present; remote fills in
-            // for lists the local side doesn't have.
             for (const [listName, order] of Object.entries(localData.manualOrder || {})) {
                 if (merged.bookmarks[listName] && !merged.manualOrder[listName]) {
                     merged.manualOrder[listName] = order.slice();
@@ -834,8 +821,6 @@
                     sorted.sort((a, b) => {
                         const nameCmp = getRepoName(a.repo).localeCompare(getRepoName(b.repo));
                         if (nameCmp !== 0) return nameCmp;
-                        // Tie-break by full "owner/name" so the ordering is
-                        // stable when two repos share a name across owners.
                         return a.repo.localeCompare(b.repo);
                     });
                     break;
@@ -2049,7 +2034,6 @@
         const container = document.getElementById('bookmarks-list-container');
         if (!container) return;
 
-        // Preserve the search filter across list re-renders.
         const existingSearch = document.getElementById('bookmark-search');
         const searchValue = existingSearch ? existingSearch.value : '';
 
@@ -2132,7 +2116,6 @@
 
         attachListEventListeners();
 
-        // Restore the search filter after re-render
         if (searchValue) {
             const newSearch = document.getElementById('bookmark-search');
             if (newSearch) {
@@ -2626,6 +2609,10 @@
         setTimeout(addBookmarksTabToProfilePage, 500);
     }
 
+    // Observe childList for menu mounting, and the `open` attribute so we
+    // re-inject the item each time GitHub's popover opens. The callback is
+    // throttled via requestAnimationFrame so our own DOM churn doesn't flood
+    // the handler.
     function watchForProfileMenu() {
         let rafScheduled = false;
         const schedule = () => {
@@ -2641,7 +2628,9 @@
 
         observer.observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['open']
         });
     }
 
