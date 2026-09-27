@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.2.0
+// @version      6.6.1
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -32,8 +32,8 @@
     const CACHE_DURATION = 30000; // 30 seconds
     const GIST_FILENAME = 'github-bookmarks.json';
     const BOOKMARKS_PAGE_PATH = '/bookmarked-repositories';
+    const MAX_CUSTOM_LISTS = 7;
 
-    // Sort options
     const SORT_OPTIONS = {
         'manual': 'Manual (drag to reorder)',
         'alpha-asc': 'Name (A-Z)',
@@ -42,7 +42,6 @@
         'date-asc': 'Oldest first'
     };
 
-    // SVG Icons
     const ICONS = {
         bookmarkHollow: `<svg class="octicon octicon-bookmark" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 2.75C3 1.784 3.784 1 4.75 1h6.5c.966 0 1.75.784 1.75 1.75v11.5a.75.75 0 0 1-1.227.579L8 11.722l-3.773 3.107A.75.75 0 0 1 3 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.91l3.023-2.489a.75.75 0 0 1 .954 0l3.023 2.49V2.75a.25.25 0 0 0-.25-.25Z"></path></svg>`,
         bookmarkFilled: `<svg class="octicon octicon-bookmark-fill" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 2.75C3 1.784 3.784 1 4.75 1h6.5c.966 0 1.75.784 1.75 1.75v11.5a.75.75 0 0 1-1.227.579L8 11.722l-3.773 3.107A.75.75 0 0 1 3 14.25Z"></path></svg>`,
@@ -50,8 +49,6 @@
         close: `<svg class="octicon octicon-x" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path></svg>`,
         plus: `<svg class="octicon octicon-plus" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg>`,
         trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
-        questionMark: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.92 6.085h.001a.749.749 0 1 1-1.342-.67c.169-.339.436-.701.849-.977C6.845 4.16 7.369 4 8 4a2.756 2.756 0 0 1 1.638.525c.503.377.862.965.862 1.725 0 .448-.115.83-.329 1.15-.205.307-.47.513-.692.662-.109.072-.22.138-.313.195l-.006.004a6.24 6.24 0 0 0-.26.16.952.952 0 0 0-.276.245.75.75 0 0 1-1.248-.832c.184-.264.42-.489.692-.661.103-.067.207-.132.313-.195l.007-.004c.1-.061.182-.11.258-.161a.969.969 0 0 0 .277-.245C8.96 6.514 9 6.427 9 6.25c0-.412-.155-.826-.57-1.12A1.256 1.256 0 0 0 8 4.75c-.361 0-.67.1-.894.27-.228.173-.4.412-.534.714v.001ZM8 11a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
-        pencil: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path></svg>`,
         tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`,
         search: `<svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" fill="currentColor" class="octicon octicon-search"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg>`,
         sync: `<svg class="octicon octicon-sync" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z"></path></svg>`,
@@ -59,10 +56,12 @@
         upload: `<svg class="octicon octicon-upload" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 9a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h8a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 12 14H4a1.75 1.75 0 0 1-1.75-1.75v-2.5A.75.75 0 0 1 3 9Z"></path><path d="M8.75 3.561V10a.75.75 0 0 1-1.5 0V3.56L5.28 5.53a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25a.749.749 0 1 1-1.06 1.06L8.75 3.56Z"></path></svg>`,
         sort: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 4.75A.75.75 0 0 1 .75 4h14.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 4.75Zm0 3.5A.75.75 0 0 1 .75 7.5h10.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 8.25Zm0 3.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75Z"></path></svg>`,
         chevronDown: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"></path></svg>`,
-        grabber: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM6 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`
+        grabber: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM6 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
+        moveTo: `<svg class="octicon octicon-arrow-right" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8H3.75a.75.75 0 0 1 0-1.5h6.19L8.22 4.03a.75.75 0 0 1 0-1.06Z"></path></svg>`
     };
 
     let syncInProgress = false;
+    let isRendering = false;
 
     // ============================================================================
     // GIST-BASED STORAGE UTILITIES
@@ -71,6 +70,27 @@
     const Storage = {
         cache: null,
         cacheTimestamp: 0,
+
+        // Sync status tracking
+        // 'unknown'   — no operation attempted yet this session
+        // 'unsynced'  — no token/gist configured
+        // 'syncing'   — a fetch or save is in flight
+        // 'synced'    — last operation succeeded
+        // 'failed'    — last operation failed
+        lastSyncStatus: 'unknown',
+        lastSyncError: '',
+
+        setSyncStatus(status, error = '') {
+            this.lastSyncStatus = status;
+            this.lastSyncError = error;
+        },
+
+        getSyncStatus() {
+            if (!this.getSyncToken() || !this.getGistId()) {
+                return { status: 'unsynced', error: '' };
+            }
+            return { status: this.lastSyncStatus, error: this.lastSyncError };
+        },
 
         getSyncToken() {
             return GM_getValue(STORAGE_KEYS.SYNC_TOKEN, '');
@@ -103,6 +123,150 @@
         invalidateCache() {
             this.cache = null;
             this.cacheTimestamp = 0;
+        },
+
+        // Shallow-clone the top-level data structure so that callers cannot
+        // accidentally mutate the cache via the object returned by getData().
+        _cloneData(data) {
+            if (!data) return data;
+            return {
+                bookmarks: data.bookmarks
+                    ? Object.fromEntries(
+                        Object.entries(data.bookmarks).map(([k, v]) => [k, Array.isArray(v) ? v.slice() : v])
+                    )
+                    : {},
+                lists: Array.isArray(data.lists) ? data.lists.slice() : [DEFAULT_LIST],
+                listOrder: Array.isArray(data.listOrder) ? data.listOrder.slice() : [],
+                manualOrder: data.manualOrder
+                    ? Object.fromEntries(
+                        Object.entries(data.manualOrder).map(([k, v]) => [k, Array.isArray(v) ? v.slice() : v])
+                    )
+                    : {},
+                lastSync: data.lastSync
+            };
+        },
+
+        // Ensures every list has a valid manualOrder array that matches its
+        // membership.
+        normalizeManualOrder(data) {
+            if (!data || !data.bookmarks) return { data, changed: false };
+
+            let changed = false;
+            if (!data.manualOrder || typeof data.manualOrder !== 'object') {
+                data.manualOrder = {};
+                changed = true;
+            }
+
+            for (const [listName, items] of Object.entries(data.bookmarks)) {
+                const memberRepos = items.map(b => b.repo);
+                const memberSet = new Set(memberRepos);
+
+                let currentOrder = Array.isArray(data.manualOrder[listName])
+                    ? data.manualOrder[listName].slice()
+                    : null;
+
+                if (!currentOrder) {
+                    currentOrder = memberRepos.slice();
+                    changed = true;
+                } else {
+                    const pruned = currentOrder.filter(r => memberSet.has(r));
+                    if (pruned.length !== currentOrder.length) {
+                        currentOrder = pruned;
+                        changed = true;
+                    }
+                    const orderedSet = new Set(currentOrder);
+                    for (const repo of memberRepos) {
+                        if (!orderedSet.has(repo)) {
+                            currentOrder.push(repo);
+                            changed = true;
+                        }
+                    }
+                }
+
+                data.manualOrder[listName] = currentOrder;
+            }
+
+            for (const listName of Object.keys(data.manualOrder)) {
+                if (!data.bookmarks[listName]) {
+                    delete data.manualOrder[listName];
+                    changed = true;
+                }
+            }
+
+            return { data, changed };
+        },
+
+        // Ensures each repo appears in exactly one list.
+        deduplicateBookmarks(data) {
+            if (!data || !data.bookmarks) return { data, changed: false };
+
+            const seen = new Map();
+            let changed = false;
+
+            for (const [listName, items] of Object.entries(data.bookmarks)) {
+                const seenInThisList = new Set();
+                for (const item of items) {
+                    if (seenInThisList.has(item.repo)) {
+                        changed = true;
+                        continue;
+                    }
+                    seenInThisList.add(item.repo);
+
+                    const existing = seen.get(item.repo);
+                    if (!existing) {
+                        seen.set(item.repo, { list: listName, bookmark: item });
+                        continue;
+                    }
+
+                    const existingIsDefault = existing.list === DEFAULT_LIST;
+                    const currentIsDefault = listName === DEFAULT_LIST;
+
+                    let keepExisting;
+                    if (existingIsDefault && !currentIsDefault) {
+                        keepExisting = false;
+                    } else if (!existingIsDefault && currentIsDefault) {
+                        keepExisting = true;
+                    } else {
+                        const existingTime = existing.bookmark.addedAt
+                            ? new Date(existing.bookmark.addedAt).getTime()
+                            : 0;
+                        const currentTime = item.addedAt
+                            ? new Date(item.addedAt).getTime()
+                            : 0;
+                        keepExisting = existingTime <= currentTime;
+                    }
+
+                    if (!keepExisting) {
+                        seen.set(item.repo, { list: listName, bookmark: item });
+                    }
+                    changed = true;
+                }
+            }
+
+            if (!changed) return { data, changed: false };
+
+            const newBookmarks = {};
+            for (const [listName, items] of Object.entries(data.bookmarks)) {
+                const kept = [];
+                const seenInThisList = new Set();
+                for (const item of items) {
+                    if (seenInThisList.has(item.repo)) continue;
+                    seenInThisList.add(item.repo);
+
+                    const winner = seen.get(item.repo);
+                    if (winner && winner.list === listName && winner.bookmark === item) {
+                        kept.push(item);
+                    }
+                }
+                if (kept.length > 0) {
+                    newBookmarks[listName] = kept;
+                }
+            }
+
+            return {
+                data: { ...data, bookmarks: newBookmarks },
+                changed: true
+            };
         },
 
         async findExistingGist(token) {
@@ -148,6 +312,9 @@
                 return null;
             }
 
+            this.setSyncStatus('syncing');
+            this._notifyStatusChanged();
+
             try {
                 const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                     headers: {
@@ -164,12 +331,27 @@
 
                 if (!content) throw new Error('Bookmark data not found in gist');
 
-                const data = JSON.parse(content);
+                let data = JSON.parse(content);
+
+                const deduped = this.deduplicateBookmarks(data);
+                data = deduped.data;
+
+                const normalized = this.normalizeManualOrder(data);
+                data = normalized.data;
+
+                if (deduped.changed || normalized.changed) {
+                    this.saveToGist(data, true).catch(() => {});
+                }
+
                 this.cache = data;
                 this.cacheTimestamp = Date.now();
+                this.setSyncStatus('synced');
+                this._notifyStatusChanged();
                 return data;
             } catch (error) {
                 console.error('Failed to fetch from Gist:', error);
+                this.setSyncStatus('failed', error.message || String(error));
+                this._notifyStatusChanged();
                 if (!silent) alert(`Failed to load bookmarks: ${error.message}`);
                 return null;
             }
@@ -189,6 +371,10 @@
                 return { success: false, error: 'No token configured' };
             }
 
+            const deduped = this.deduplicateBookmarks(data);
+            const normalized = this.normalizeManualOrder(deduped.data);
+            const cleanData = normalized.data;
+
             let gistId = this.getGistId();
             if (!gistId) {
                 console.log('No Gist ID linked. Searching for existing backup before creating new...');
@@ -203,9 +389,12 @@
             const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
 
             const payload = {
-                ...data,
+                ...cleanData,
                 lastSync: new Date().toISOString()
             };
+
+            this.setSyncStatus('syncing');
+            this._notifyStatusChanged();
 
             try {
                 const response = await fetch(url, {
@@ -240,6 +429,8 @@
 
                 this.cache = payload;
                 this.cacheTimestamp = Date.now();
+                this.setSyncStatus('synced');
+                this._notifyStatusChanged();
                 this.dispatchUpdate();
 
                 syncInProgress = false;
@@ -247,6 +438,8 @@
             } catch (error) {
                 console.error('Save to Gist failed:', error);
                 syncInProgress = false;
+                this.setSyncStatus('failed', error.message || String(error));
+                this._notifyStatusChanged();
                 if (!silent) {
                     alert(`Failed to save: ${error.message}\n\nMake sure your token has the 'gist' scope.`);
                 }
@@ -254,22 +447,32 @@
             }
         },
 
+        _notifyStatusChanged() {
+            window.dispatchEvent(new CustomEvent('ghBookmarkSyncStatusChanged'));
+        },
+
         async getData() {
-            if (this.isCacheValid()) return this.cache;
+            if (this.isCacheValid()) return this._cloneData(this.cache);
 
             const data = await this.fetchFromGist(true);
-            if (data) return data;
+            if (data) return this._cloneData(data);
 
             return {
                 bookmarks: {},
                 lists: [DEFAULT_LIST],
-                listOrder: []
+                listOrder: [],
+                manualOrder: {}
             };
         },
 
         async getBookmarks() {
             const data = await this.getData();
             return data.bookmarks || {};
+        },
+
+        async getManualOrder(listName) {
+            const data = await this.getData();
+            return data.manualOrder?.[listName] || null;
         },
 
         async getLists() {
@@ -331,21 +534,51 @@
 
         async addBookmark(repo, repoUrl, listName) {
             const data = await this.getData();
-            if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
-            if (!data.bookmarks[listName].some(b => b.repo === repo)) {
-                data.bookmarks[listName].push({ repo, repoUrl, addedAt: new Date().toISOString() });
-                await this.saveToGist(data);
-                return true;
+
+            for (const [otherList, items] of Object.entries(data.bookmarks)) {
+                if (otherList === listName) continue;
+                const filtered = items.filter(b => b.repo !== repo);
+                if (filtered.length === 0) {
+                    delete data.bookmarks[otherList];
+                    if (data.manualOrder) delete data.manualOrder[otherList];
+                } else if (filtered.length !== items.length) {
+                    data.bookmarks[otherList] = filtered;
+                    if (data.manualOrder?.[otherList]) {
+                        data.manualOrder[otherList] = data.manualOrder[otherList].filter(r => r !== repo);
+                    }
+                }
             }
-            return false;
+
+            if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
+            if (!data.manualOrder) data.manualOrder = {};
+            if (!Array.isArray(data.manualOrder[listName])) data.manualOrder[listName] = [];
+
+            const existing = data.bookmarks[listName].find(b => b.repo === repo);
+            if (!existing) {
+                data.bookmarks[listName].push({
+                    repo,
+                    repoUrl,
+                    addedAt: new Date().toISOString()
+                });
+                if (!data.manualOrder[listName].includes(repo)) {
+                    data.manualOrder[listName].push(repo);
+                }
+            }
+
+            await this.saveToGist(data);
+            return true;
         },
 
         async removeBookmark(repo, listName) {
             const data = await this.getData();
             if (data.bookmarks[listName]) {
                 data.bookmarks[listName] = data.bookmarks[listName].filter(b => b.repo !== repo);
+                if (data.manualOrder?.[listName]) {
+                    data.manualOrder[listName] = data.manualOrder[listName].filter(r => r !== repo);
+                }
                 if (data.bookmarks[listName].length === 0) {
                     delete data.bookmarks[listName];
+                    if (data.manualOrder) delete data.manualOrder[listName];
                 }
                 this.invalidateCache();
                 await this.saveToGist(data);
@@ -354,12 +587,79 @@
             return false;
         },
 
+        async moveBookmark(repo, fromList, toList) {
+            if (fromList === toList) return false;
+
+            const data = await this.getData();
+            const bookmark = data.bookmarks[fromList]?.find(b => b.repo === repo);
+            if (!bookmark) return false;
+
+            if (!data.manualOrder) data.manualOrder = {};
+
+            data.bookmarks[fromList] = data.bookmarks[fromList].filter(b => b.repo !== repo);
+            if (data.manualOrder[fromList]) {
+                data.manualOrder[fromList] = data.manualOrder[fromList].filter(r => r !== repo);
+            }
+            if (data.bookmarks[fromList].length === 0) {
+                delete data.bookmarks[fromList];
+                delete data.manualOrder[fromList];
+            }
+
+            for (const [otherList, items] of Object.entries(data.bookmarks)) {
+                if (otherList === toList) continue;
+                const filtered = items.filter(b => b.repo !== repo);
+                if (filtered.length === 0) {
+                    delete data.bookmarks[otherList];
+                    if (data.manualOrder[otherList]) delete data.manualOrder[otherList];
+                } else if (filtered.length !== items.length) {
+                    data.bookmarks[otherList] = filtered;
+                    if (data.manualOrder[otherList]) {
+                        data.manualOrder[otherList] = data.manualOrder[otherList].filter(r => r !== repo);
+                    }
+                }
+            }
+
+            if (!data.bookmarks[toList]) data.bookmarks[toList] = [];
+            if (!data.manualOrder[toList]) data.manualOrder[toList] = [];
+            if (!data.bookmarks[toList].some(b => b.repo === repo)) {
+                data.bookmarks[toList].push(bookmark);
+            }
+            if (!data.manualOrder[toList].includes(repo)) {
+                data.manualOrder[toList].push(repo);
+            }
+
+            this.invalidateCache();
+            await this.saveToGist(data);
+            return true;
+        },
+
+        async setManualOrder(listName, orderedRepos) {
+            const data = await this.getData();
+            if (!data.bookmarks[listName]) return false;
+
+            if (!data.manualOrder) data.manualOrder = {};
+
+            const memberSet = new Set(data.bookmarks[listName].map(b => b.repo));
+            const cleaned = orderedRepos.filter(r => memberSet.has(r));
+
+            const seen = new Set(cleaned);
+            for (const repo of memberSet) {
+                if (!seen.has(repo)) cleaned.push(repo);
+            }
+
+            data.manualOrder[listName] = cleaned;
+
+            this.invalidateCache();
+            await this.saveToGist(data);
+            return true;
+        },
+
         async addList(listName) {
             const data = await this.getData();
             if (!data.lists.includes(listName)) {
                 const customLists = data.lists.filter(l => l !== DEFAULT_LIST);
-                if (customLists.length >= 7) {
-                    alert('Maximum of 7 custom lists reached. Please delete a list before creating a new one.');
+                if (customLists.length >= MAX_CUSTOM_LISTS) {
+                    alert(`Maximum of ${MAX_CUSTOM_LISTS} custom lists reached. Please delete a list before creating a new one.`);
                     return false;
                 }
                 data.lists.push(listName);
@@ -388,6 +688,10 @@
                 data.bookmarks[newName] = data.bookmarks[oldName];
                 delete data.bookmarks[oldName];
             }
+            if (data.manualOrder?.[oldName]) {
+                data.manualOrder[newName] = data.manualOrder[oldName];
+                delete data.manualOrder[oldName];
+            }
             data.listOrder = data.listOrder.map(l => l === oldName ? newName : l);
             await this.saveToGist(data);
             return true;
@@ -404,6 +708,9 @@
             if (data.bookmarks[listName]) {
                 delete data.bookmarks[listName];
             }
+            if (data.manualOrder?.[listName]) {
+                delete data.manualOrder[listName];
+            }
             data.listOrder = data.listOrder.filter(l => l !== listName);
             await this.saveToGist(data);
             return true;
@@ -419,7 +726,8 @@
             const merged = {
                 bookmarks: { ...remoteData.bookmarks },
                 lists: [...new Set([...(remoteData.lists || []), ...(localData.lists || [])])],
-                listOrder: remoteData.listOrder || localData.listOrder || []
+                listOrder: remoteData.listOrder || localData.listOrder || [],
+                manualOrder: { ...(remoteData.manualOrder || {}) }
             };
 
             for (const [listName, repos] of Object.entries(localData.bookmarks || {})) {
@@ -432,7 +740,18 @@
                     }
                 });
             }
-            return merged;
+
+            // Local manualOrder takes precedence when present; remote fills in
+            // for lists the local side doesn't have.
+            for (const [listName, order] of Object.entries(localData.manualOrder || {})) {
+                if (merged.bookmarks[listName] && !merged.manualOrder[listName]) {
+                    merged.manualOrder[listName] = order.slice();
+                }
+            }
+
+            const deduped = this.deduplicateBookmarks(merged);
+            const normalized = this.normalizeManualOrder(deduped.data);
+            return normalized.data;
         },
 
         async initialize() {
@@ -479,19 +798,53 @@
     // SORTING UTILITIES
     // ============================================================================
 
+    // Extracts the repository name from a "owner/name" string.
+    // Used for sorting so that repos are ordered by their name, not
+    // their owner. The full "owner/name" is still what gets displayed.
+    function getRepoName(fullName) {
+        if (!fullName) return '';
+        const slash = fullName.indexOf('/');
+        return slash === -1 ? fullName : fullName.slice(slash + 1);
+    }
+
     const Sorter = {
-        sortBookmarks(items, sortPref) {
+        sortBookmarks(items, sortPref, manualOrder) {
             const sorted = [...items];
 
             switch (sortPref) {
-                case 'manual':
-                    // Manual order: keep the array order as stored
+                case 'manual': {
+                    if (!Array.isArray(manualOrder) || manualOrder.length === 0) {
+                        break;
+                    }
+                    const orderIndex = new Map();
+                    manualOrder.forEach((repo, idx) => orderIndex.set(repo, idx));
+                    const fallbackIndex = new Map();
+                    items.forEach((item, idx) => fallbackIndex.set(item, idx));
+                    sorted.sort((a, b) => {
+                        const ia = orderIndex.has(a.repo) ? orderIndex.get(a.repo) : Infinity;
+                        const ib = orderIndex.has(b.repo) ? orderIndex.get(b.repo) : Infinity;
+                        if (ia === Infinity && ib === Infinity) {
+                            return fallbackIndex.get(a) - fallbackIndex.get(b);
+                        }
+                        return ia - ib;
+                    });
                     break;
+                }
                 case 'alpha-asc':
-                    sorted.sort((a, b) => a.repo.localeCompare(b.repo));
+                    sorted.sort((a, b) => {
+                        const nameCmp = getRepoName(a.repo).localeCompare(getRepoName(b.repo));
+                        if (nameCmp !== 0) return nameCmp;
+                        // Tie-break by full "owner/name" so the ordering is
+                        // stable when two repos share a name across owners.
+                        return a.repo.localeCompare(b.repo);
+                    });
                     break;
                 case 'alpha-desc':
-                    sorted.sort((a, b) => b.repo.localeCompare(a.repo));
+                    sorted.sort((a, b) => {
+                        const nameCmp = getRepoName(b.repo).localeCompare(getRepoName(a.repo));
+                        if (nameCmp !== 0) return nameCmp;
+                        return b.repo.localeCompare(a.repo);
+                    });
                     break;
                 case 'date-desc':
                     sorted.sort((a, b) => {
@@ -508,7 +861,11 @@
                     });
                     break;
                 default:
-                    sorted.sort((a, b) => a.repo.localeCompare(b.repo));
+                    sorted.sort((a, b) => {
+                        const nameCmp = getRepoName(a.repo).localeCompare(getRepoName(b.repo));
+                        if (nameCmp !== 0) return nameCmp;
+                        return a.repo.localeCompare(b.repo);
+                    });
             }
 
             return sorted;
@@ -818,11 +1175,8 @@
             }
 
             .sort-dropdown-btn .sort-chevron {
-                transition: transform 0.2s ease;
-            }
-
-            .sort-dropdown-container.open .sort-dropdown-btn .sort-chevron {
-                transform: rotate(180deg);
+                display: inline-flex;
+                align-items: center;
             }
 
             .sort-dropdown-menu {
@@ -887,8 +1241,26 @@
                 background: var(--bgColor-muted, var(--color-canvas-subtle));
                 border: 1px solid var(--borderColor-default, var(--color-border-default));
                 border-radius: 6px;
-                padding: 6px 12px;
+                padding: 6px 6px 6px 12px;
                 gap: 8px;
+            }
+
+            #bookmarks-page-container .search-container .sort-dropdown-container {
+                flex-shrink: 0;
+                margin-left: auto;
+            }
+
+            #bookmarks-page-container .search-container .sort-dropdown-btn {
+                border: none;
+                background: transparent;
+                box-shadow: none;
+                padding: 5px 10px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+            }
+
+            #bookmarks-page-container .search-container .sort-dropdown-btn:hover {
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+                color: var(--fgColor-default, var(--color-fg-default));
             }
 
             #bookmarks-page-container .search-container svg {
@@ -939,6 +1311,7 @@
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                flex: 1;
             }
 
             #bookmarks-page-container .bookmark-category-header .category-count {
@@ -951,8 +1324,12 @@
             }
 
             #bookmarks-page-container .bookmark-category-header .collapse-icon {
-                transition: transform 0.2s ease;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: transform 0.15s ease;
                 color: var(--fgColor-muted, var(--color-fg-muted));
+                flex-shrink: 0;
             }
 
             #bookmarks-page-container .bookmark-category-header .collapse-icon.collapsed {
@@ -971,7 +1348,6 @@
                 display: none;
             }
 
-            /* Drag and drop styles */
             #bookmarks-page-container .bookmark-item {
                 padding: 12px 16px;
                 display: flex;
@@ -1009,7 +1385,7 @@
                 margin-right: 4px;
                 flex-shrink: 0;
                 border-radius: 4px;
-                transition: color 0.1s ease;
+                transition: color 0.1s ease, opacity 0.1s ease;
             }
 
             #bookmarks-page-container .bookmark-item .drag-handle:hover {
@@ -1019,6 +1395,16 @@
 
             #bookmarks-page-container .bookmark-item .drag-handle:active {
                 cursor: grabbing;
+            }
+
+            #bookmarks-page-container .bookmark-item .drag-handle.drag-handle--disabled {
+                opacity: 0.35;
+                cursor: not-allowed;
+            }
+
+            #bookmarks-page-container .bookmark-item .drag-handle.drag-handle--disabled:hover {
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                background: transparent;
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-info {
@@ -1080,26 +1466,13 @@
                 border-color: var(--borderColor-accent-emphasis, var(--color-accent-emphasis));
             }
 
-            #bookmarks-page-container .bookmark-item .bookmark-tags {
-                display: flex;
-                gap: 4px;
-                flex-wrap: wrap;
-            }
-
-            #bookmarks-page-container .bookmark-item .bookmark-tag {
-                font-size: 11px;
-                padding: 1px 8px;
-                border-radius: 12px;
-                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
-                color: var(--fgColor-muted, var(--color-fg-muted));
-                border: 1px solid var(--borderColor-muted, var(--color-border-muted));
-            }
-
             /* Move-to-list dropdown */
             .move-list-menu {
                 position: fixed;
                 z-index: 200;
                 min-width: 180px;
+                max-height: 320px;
+                overflow-y: auto;
                 background: var(--overlay-bgColor, var(--color-canvas-overlay));
                 border: 1px solid var(--borderColor-default, var(--color-border-default));
                 border-radius: 8px;
@@ -1155,6 +1528,13 @@
                 margin-bottom: 8px;
             }
 
+            .bookmarks-loading {
+                padding: 24px;
+                text-align: center;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                font-size: 13px;
+            }
+
             /* Sync status */
             .bookmarks-sync-status {
                 font-size: 12px;
@@ -1164,11 +1544,20 @@
                 gap: 6px;
             }
 
+            .bookmarks-sync-status.clickable {
+                cursor: pointer;
+            }
+
+            .bookmarks-sync-status.clickable:hover {
+                color: var(--fgColor-default, var(--color-fg-default));
+            }
+
             .bookmarks-sync-status .sync-dot {
                 display: inline-block;
                 width: 8px;
                 height: 8px;
                 border-radius: 50%;
+                flex-shrink: 0;
             }
 
             .bookmarks-sync-status .sync-dot.synced {
@@ -1176,7 +1565,21 @@
             }
 
             .bookmarks-sync-status .sync-dot.unsynced {
+                background: var(--fgColor-muted, var(--color-fg-muted));
+            }
+
+            .bookmarks-sync-status .sync-dot.syncing {
                 background: var(--attention-fgColor, var(--color-attention-fg));
+                animation: ghBookmarkPulse 1.2s ease-in-out infinite;
+            }
+
+            .bookmarks-sync-status .sync-dot.failed {
+                background: var(--danger-fgColor, var(--color-danger-fg));
+            }
+
+            @keyframes ghBookmarkPulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.4; }
             }
 
             /* Profile tab bookmark item */
@@ -1314,6 +1717,7 @@
             footer.className = 'SelectMenu-footer';
 
             const addButton = document.createElement('button');
+            addButton.type = 'button';
             addButton.className = 'SelectMenu-item SelectMenu-item--add';
             addButton.innerHTML = `
                 <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
@@ -1542,6 +1946,7 @@
         const currentSort = Storage.getSortPreference();
 
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = 'btn sort-dropdown-btn';
         btn.innerHTML = `${ICONS.sort} Sort <span class="sort-chevron">${ICONS.chevronDown}</span>`;
         btn.title = `Sort: ${SORT_OPTIONS[currentSort] || 'Name (A-Z)'}`;
@@ -1551,6 +1956,7 @@
 
         Object.entries(SORT_OPTIONS).forEach(([key, label]) => {
             const item = document.createElement('button');
+            item.type = 'button';
             item.className = `sort-dropdown-item${key === currentSort ? ' active' : ''}`;
             item.dataset.sort = key;
             item.innerHTML = `
@@ -1600,6 +2006,7 @@
 
             for (const listName of allLists) {
                 const item = document.createElement('button');
+                item.type = 'button';
                 item.className = `move-list-item${listName === currentList ? ' disabled' : ''}`;
                 item.textContent = listName === DEFAULT_LIST ? 'Unassigned' : listName;
                 item.disabled = listName === currentList;
@@ -1608,25 +2015,7 @@
                     e.stopPropagation();
                     if (listName === currentList) return;
 
-                    const data = await Storage.getData();
-                    // Find the bookmark in the current list
-                    const bookmark = data.bookmarks[currentList]?.find(b => b.repo === repo);
-                    if (!bookmark) return;
-
-                    // Remove from current list
-                    data.bookmarks[currentList] = data.bookmarks[currentList].filter(b => b.repo !== repo);
-                    if (data.bookmarks[currentList].length === 0) {
-                        delete data.bookmarks[currentList];
-                    }
-
-                    // Add to new list
-                    if (!data.bookmarks[listName]) data.bookmarks[listName] = [];
-                    if (!data.bookmarks[listName].some(b => b.repo === repo)) {
-                        data.bookmarks[listName].push(bookmark);
-                    }
-
-                    Storage.invalidateCache();
-                    await Storage.saveToGist(data);
+                    await Storage.moveBookmark(repo, currentList, listName);
                     Storage.dispatchUpdate();
 
                     menu.classList.remove('open');
@@ -1640,12 +2029,10 @@
 
         renderMenu();
 
-        // Position menu near the button
         const rect = buttonElement.getBoundingClientRect();
         menu.style.top = `${rect.bottom + 4}px`;
         menu.style.left = `${Math.min(rect.left, window.innerWidth - 200)}px`;
 
-        // Close on outside click
         const closeHandler = (e) => {
             if (!menu.contains(e.target) && e.target !== buttonElement) {
                 menu.classList.remove('open');
@@ -1662,12 +2049,17 @@
         const container = document.getElementById('bookmarks-list-container');
         if (!container) return;
 
-        const bookmarks = await Storage.getBookmarks();
+        // Preserve the search filter across list re-renders.
+        const existingSearch = document.getElementById('bookmark-search');
+        const searchValue = existingSearch ? existingSearch.value : '';
+
+        const data = await Storage.getData();
+        const bookmarks = data.bookmarks || {};
+        const manualOrderMap = data.manualOrder || {};
         const allLists = await Storage.getLists();
         const sortPref = Storage.getSortPreference();
         const isManualSort = sortPref === 'manual';
 
-        // Get all lists that have bookmarks
         const listsWithBookmarks = allLists.filter(list => bookmarks[list] && bookmarks[list].length > 0);
 
         if (listsWithBookmarks.length === 0) {
@@ -1690,8 +2082,7 @@
             const items = bookmarks[listName] || [];
             if (items.length === 0) continue;
 
-            // Sort items (manual keeps stored order)
-            const sortedItems = Sorter.sortBookmarks(items, sortPref);
+            const sortedItems = Sorter.sortBookmarks(items, sortPref, manualOrderMap[listName]);
 
             const isDefault = listName === DEFAULT_LIST;
             const listLabel = isDefault ? 'Unassigned' : listName;
@@ -1700,36 +2091,32 @@
                 <div class="bookmark-category" data-list="${listName}">
                     <div class="bookmark-category-header" data-category="${listName}">
                         <h3>
+                            <span class="collapse-icon">${ICONS.chevronDown}</span>
                             ${ICONS.tag}
                             ${listLabel}
                             <span class="category-count">${items.length}</span>
                         </h3>
-                        <span class="collapse-icon">${ICONS.chevronDown}</span>
                     </div>
                     <div class="bookmark-category-body" data-list="${listName}">
             `;
 
             for (const item of sortedItems) {
-                // Get tags for this bookmark
-                const tags = [];
-                for (const list of allLists) {
-                    if (list !== listName && bookmarks[list]?.some(b => b.repo === item.repo)) {
-                        tags.push(list === DEFAULT_LIST ? 'Unassigned' : list);
-                    }
-                }
+                const dragTitle = isManualSort
+                    ? 'Drag to reorder'
+                    : 'Switch to Manual sort to drag and reorder';
+                const dragClass = isManualSort ? 'drag-handle' : 'drag-handle drag-handle--disabled';
 
                 html += `
                     <div class="bookmark-item" data-repo="${item.repo}" data-list="${listName}">
-                        <span class="drag-handle" title="Drag to reorder${isManualSort ? '' : ' (switch to Manual sort to reorder)'}">${ICONS.grabber}</span>
+                        <span class="${dragClass}" title="${dragTitle}">${ICONS.grabber}</span>
                         <div class="bookmark-info">
                             <a href="${item.repoUrl}" target="_blank" rel="noopener noreferrer">${item.repo}</a>
-                            ${tags.length > 0 ? `<div class="bookmark-tags">${tags.map(t => `<span class="bookmark-tag">${t}</span>`).join('')}</div>` : ''}
                         </div>
                         <div class="bookmark-actions">
-                            <button class="move-btn" data-repo="${item.repo}" data-list="${listName}" title="Move to another list">
-                                <svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1-1.06 1.06L9.5 5.31v5.44l1.97-1.97a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0l-3.25-3.25a.75.75 0 1 1 1.06-1.06L7.5 10.75V5.31L5.53 7.28a.75.75 0 0 1-1.06-1.06l3.25-3.25Z"></path></svg>
+                            <button type="button" class="move-btn" data-repo="${item.repo}" data-list="${listName}" title="Move to another list">
+                                ${ICONS.moveTo}
                             </button>
-                            <button class="remove-btn" data-repo="${item.repo}" data-list="${listName}" title="Remove from this list">${ICONS.trash}</button>
+                            <button type="button" class="remove-btn" data-repo="${item.repo}" data-list="${listName}" title="Remove from this list">${ICONS.trash}</button>
                         </div>
                     </div>
                 `;
@@ -1743,12 +2130,21 @@
 
         container.innerHTML = html;
 
-        // Attach event listeners
         attachListEventListeners();
 
-        // Initialize drag-and-drop
+        // Restore the search filter after re-render
+        if (searchValue) {
+            const newSearch = document.getElementById('bookmark-search');
+            if (newSearch) {
+                newSearch.value = searchValue;
+                newSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
         initDragAndDrop();
     }
+
+    const _sortableInstances = new WeakMap();
 
     function initDragAndDrop() {
         const bodies = document.querySelectorAll('.bookmark-category-body');
@@ -1758,84 +2154,56 @@
         bodies.forEach(body => {
             if (typeof Sortable === 'undefined') return;
 
-            Sortable.create(body, {
+            const existing = _sortableInstances.get(body);
+            if (existing) {
+                try { existing.destroy(); } catch (e) { /* ignore */ }
+                _sortableInstances.delete(body);
+            }
+
+            const instance = Sortable.create(body, {
                 group: 'bookmarks',
                 animation: 150,
                 handle: '.drag-handle',
                 ghostClass: 'dragging',
                 dragClass: 'dragging',
                 disabled: !isManualSort,
+                filter: '.drag-handle--disabled',
+                preventOnFilter: true,
                 onEnd: async (evt) => {
+                    if (Storage.getSortPreference() !== 'manual') {
+                        renderBookmarksList();
+                        return;
+                    }
+
                     const fromList = evt.from.dataset.list;
                     const toList = evt.to.dataset.list;
                     const repo = evt.item.dataset.repo;
 
                     if (!repo) return;
 
-                    const data = await Storage.getData();
-
-                    // Remove from source list
-                    if (data.bookmarks[fromList]) {
-                        data.bookmarks[fromList] = data.bookmarks[fromList].filter(b => b.repo !== repo);
-                    }
-
-                    // Get the bookmark object
-                    let bookmark = null;
-                    // Try to find it in the original source (before removal)
-                    const originalFromList = evt.from.dataset.list;
-                    const allBookmarks = await Storage.getBookmarks();
-                    // Search all lists for the bookmark
-                    for (const list of Object.keys(allBookmarks)) {
-                        const found = allBookmarks[list]?.find(b => b.repo === repo);
-                        if (found) {
-                            bookmark = found;
-                            break;
-                        }
-                    }
-
-                    if (!bookmark) return;
-
-                    // Rebuild the target list order based on DOM order
                     const targetBody = evt.to;
                     const newOrder = [];
                     targetBody.querySelectorAll('.bookmark-item').forEach(el => {
                         newOrder.push(el.dataset.repo);
                     });
 
-                    // Ensure the target list exists
-                    if (!data.bookmarks[toList]) data.bookmarks[toList] = [];
-
-                    // Build the reordered array from existing data + moved item
-                    const targetExisting = data.bookmarks[toList].filter(b => b.repo !== repo);
-                    const reordered = [];
-                    newOrder.forEach(r => {
-                        if (r === repo) {
-                            reordered.push(bookmark);
-                        } else {
-                            const found = targetExisting.find(b => b.repo === r);
-                            if (found) reordered.push(found);
-                        }
-                    });
-                    data.bookmarks[toList] = reordered;
-
-                    // Clean up empty source list (unless it's the same as target)
-                    if (fromList !== toList && data.bookmarks[fromList] && data.bookmarks[fromList].length === 0) {
-                        delete data.bookmarks[fromList];
+                    if (fromList === toList) {
+                        await Storage.setManualOrder(toList, newOrder);
+                    } else {
+                        await Storage.moveBookmark(repo, fromList, toList);
+                        await Storage.setManualOrder(toList, newOrder);
                     }
 
-                    Storage.invalidateCache();
-                    await Storage.saveToGist(data);
                     Storage.dispatchUpdate();
-
-                    // Re-render to reflect changes (especially if a list became empty)
                     renderBookmarksPage();
                 }
             });
+
+            _sortableInstances.set(body, instance);
         });
     }
 
     function attachListEventListeners() {
-        // Collapse/expand categories
         document.querySelectorAll('.bookmark-category-header').forEach(header => {
             header.addEventListener('click', () => {
                 const body = header.parentElement.querySelector('.bookmark-category-body');
@@ -1849,7 +2217,6 @@
             });
         });
 
-        // Remove bookmark
         document.querySelectorAll('.remove-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -1865,14 +2232,12 @@
             });
         });
 
-        // Move to another list
         document.querySelectorAll('.move-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const repo = btn.getAttribute('data-repo');
                 const currentList = btn.getAttribute('data-list');
 
-                // Remove any existing move menu
                 document.querySelectorAll('.move-list-menu').forEach(m => m.remove());
 
                 const menu = createMoveListMenu(repo, currentList, btn);
@@ -1881,7 +2246,6 @@
             });
         });
 
-        // Search filter
         const searchInput = document.getElementById('bookmark-search');
         if (searchInput) {
             const newSearchInput = searchInput.cloneNode(true);
@@ -1902,143 +2266,181 @@
         }
     }
 
+    function renderSyncStatus() {
+        const statusEl = document.getElementById('bookmarks-sync-status');
+        if (!statusEl) return;
+
+        const { status, error } = Storage.getSyncStatus();
+
+        let dotClass = 'unsynced';
+        let label = 'Not configured';
+
+        switch (status) {
+            case 'synced':
+                dotClass = 'synced';
+                label = 'Synced';
+                break;
+            case 'syncing':
+                dotClass = 'syncing';
+                label = 'Syncing…';
+                break;
+            case 'failed':
+                dotClass = 'failed';
+                label = 'Sync failed';
+                break;
+            case 'unsynced':
+            default:
+                dotClass = 'unsynced';
+                label = 'Not configured';
+        }
+
+        statusEl.className = 'bookmarks-sync-status';
+        statusEl.innerHTML = `<span class="sync-dot ${dotClass}"></span>${label}`;
+
+        if (status === 'failed' && error) {
+            statusEl.classList.add('clickable');
+            statusEl.title = `Click for details: ${error}`;
+            statusEl.onclick = () => {
+                alert(`Last sync failed:\n\n${error}\n\nCheck that your token is valid and has the 'gist' scope.`);
+            };
+        } else {
+            statusEl.title = '';
+            statusEl.onclick = null;
+        }
+    }
+
     async function renderBookmarksPage() {
-        const mainContent = document.querySelector('main') || document.querySelector('.application-main') || document.querySelector('#js-pjax-container');
-        if (!mainContent) return;
+        if (isRendering) return;
+        isRendering = true;
 
-        // Check if already rendered
-        if (document.getElementById('bookmarks-page-container')) {
-            // If it exists, just re-render the list portion
-            await renderBookmarksList();
-            return;
-        }
+        try {
+            const mainContent = document.querySelector('main') || document.querySelector('.application-main') || document.querySelector('#js-pjax-container');
+            if (!mainContent) return;
 
-        const totalCount = await Storage.getTotalCount();
-        const token = Storage.getSyncToken();
-        const gistId = Storage.getGistId();
-
-        let html = `
-            <div id="bookmarks-page-container">
-                <div class="page-header">
-                    <h2>
-                        ${ICONS.bookmarkHollow}
-                        Bookmarks
-                        <span style="font-size:14px;font-weight:400;color:var(--fgColor-muted, var(--color-fg-muted));margin-left:4px;">(${totalCount})</span>
-                    </h2>
-                    <div class="page-header-actions">
-                        <div class="bookmarks-sync-status">
-                            <span class="sync-dot ${(token && gistId) ? 'synced' : 'unsynced'}"></span>
-                            ${(token && gistId) ? 'Synced' : 'Configure sync'}
-                        </div>
-                        <div id="sort-dropdown-placeholder"></div>
-                        <button id="bookmarks-configure-sync" class="btn">${ICONS.sync} Sync</button>
-                        <button id="bookmarks-export" class="btn">${ICONS.download} Export</button>
-                        <button id="bookmarks-import" class="btn">${ICONS.upload} Import</button>
-                    </div>
-                </div>
-
-                <div class="search-container">
-                    ${ICONS.search}
-                    <input type="text" id="bookmark-search" placeholder="Filter bookmarks by repository name..." autofocus>
-                </div>
-
-                <div id="bookmarks-list-container"></div>
-            </div>
-        `;
-
-        mainContent.innerHTML = html;
-        document.title = 'Bookmarks - GitHub';
-
-        // Insert the sort dropdown
-        const sortPlaceholder = document.getElementById('sort-dropdown-placeholder');
-        if (sortPlaceholder) {
-            sortPlaceholder.replaceWith(createSortDropdown());
-        }
-
-        // Render the list
-        await renderBookmarksList();
-
-        // --- Event Listeners for header buttons ---
-
-        // Configure sync
-        document.getElementById('bookmarks-configure-sync')?.addEventListener('click', async () => {
-            const currentToken = Storage.getSyncToken();
-            const message = currentToken
-                ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
-                : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: ' + SYNC_HELP_URL;
-
-            const token = prompt(message, '');
-
-            if (token !== null && token.trim() !== '') {
-                const cleanToken = token.trim();
-                Storage.setSyncToken(cleanToken);
-
-                const syncBtn = document.getElementById('bookmarks-configure-sync');
-                const originalText = syncBtn.innerHTML;
-                syncBtn.innerHTML = '⌛ Searching...';
-
-                const existingGistId = await Storage.findExistingGist(cleanToken);
-
-                if (existingGistId) {
-                    Storage.setGistId(existingGistId);
-                    const data = await Storage.fetchFromGist();
-                    if (data) {
-                        alert('Found existing bookmark backup! Restored successfully.');
-                        renderBookmarksPage();
-                        updateBookmarkButton();
-                    } else {
-                        alert('Found a backup Gist, but could not read the data.');
-                    }
-                } else {
-                    alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically when you add bookmarks.');
-                }
-
-                syncBtn.innerHTML = originalText;
-                renderBookmarksPage();
+            if (document.getElementById('bookmarks-page-container')) {
+                await renderBookmarksList();
+                renderSyncStatus();
+                return;
             }
-        });
 
-        // Export
-        document.getElementById('bookmarks-export')?.addEventListener('click', async () => {
-            const data = await Storage.getData();
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
-            const a = document.createElement('a');
-            a.href = dataStr;
-            a.download = "github_bookmarks.json";
-            a.click();
-        });
+            const totalCount = await Storage.getTotalCount();
 
-        // Import
-        document.getElementById('bookmarks-import')?.addEventListener('click', () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.readAsText(file, 'UTF-8');
-                reader.onload = async (rev) => {
-                    try {
-                        const content = JSON.parse(rev.target.result);
-                        if (content.bookmarks && content.lists) {
-                            const currentData = await Storage.getData();
-                            const merged = await Storage.mergeData(currentData, content);
-                            await Storage.saveToGist(merged);
-                            Storage.invalidateCache();
+            let html = `
+                <div id="bookmarks-page-container">
+                    <div class="page-header">
+                        <h2>
+                            ${ICONS.bookmarkHollow}
+                            Bookmarks
+                            <span style="font-size:14px;font-weight:400;color:var(--fgColor-muted, var(--color-fg-muted));margin-left:4px;">(${totalCount})</span>
+                        </h2>
+                        <div class="page-header-actions">
+                            <div id="bookmarks-sync-status" class="bookmarks-sync-status"></div>
+                            <button type="button" id="bookmarks-configure-sync" class="btn">${ICONS.sync} Sync</button>
+                            <button type="button" id="bookmarks-export" class="btn">${ICONS.download} Export</button>
+                            <button type="button" id="bookmarks-import" class="btn">${ICONS.upload} Import</button>
+                        </div>
+                    </div>
+
+                    <div class="search-container">
+                        ${ICONS.search}
+                        <input type="text" id="bookmark-search" placeholder="Filter bookmarks by repository name..." autofocus>
+                        <div id="sort-dropdown-placeholder"></div>
+                    </div>
+
+                    <div id="bookmarks-list-container"></div>
+                </div>
+            `;
+
+            mainContent.innerHTML = html;
+            document.title = 'Bookmarks - GitHub';
+
+            const sortPlaceholder = document.getElementById('sort-dropdown-placeholder');
+            if (sortPlaceholder) {
+                sortPlaceholder.replaceWith(createSortDropdown());
+            }
+
+            await renderBookmarksList();
+            renderSyncStatus();
+
+            document.getElementById('bookmarks-configure-sync')?.addEventListener('click', async () => {
+                const currentToken = Storage.getSyncToken();
+                const message = currentToken
+                    ? 'Enter new GitHub Personal Access Token (leave empty to keep current):\n\nRequired scope: gist'
+                    : 'Enter GitHub Personal Access Token:\n\nRequired scope: gist\n\nCreate one at: ' + SYNC_HELP_URL;
+
+                const token = prompt(message, '');
+
+                if (token !== null && token.trim() !== '') {
+                    const cleanToken = token.trim();
+                    Storage.setSyncToken(cleanToken);
+
+                    const syncBtn = document.getElementById('bookmarks-configure-sync');
+                    const originalText = syncBtn.innerHTML;
+                    syncBtn.innerHTML = '⌛ Searching...';
+
+                    const existingGistId = await Storage.findExistingGist(cleanToken);
+
+                    if (existingGistId) {
+                        Storage.setGistId(existingGistId);
+                        const data = await Storage.fetchFromGist();
+                        if (data) {
+                            alert('Found existing bookmark backup! Restored successfully.');
                             renderBookmarksPage();
                             updateBookmarkButton();
-                            alert('Bookmarks imported successfully!');
                         } else {
-                            alert('Invalid file format. Expected bookmarks and lists.');
+                            alert('Found a backup Gist, but could not read the data.');
                         }
-                    } catch (err) {
-                        alert('Invalid JSON file.');
+                    } else {
+                        alert('Token saved! No existing bookmark backup was found.\n\nA new backup Gist will be created automatically when you add bookmarks.');
                     }
+
+                    syncBtn.innerHTML = originalText;
+                    renderBookmarksPage();
+                }
+            });
+
+            document.getElementById('bookmarks-export')?.addEventListener('click', async () => {
+                const data = await Storage.getData();
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+                const a = document.createElement('a');
+                a.href = dataStr;
+                a.download = "github_bookmarks.json";
+                a.click();
+            });
+
+            document.getElementById('bookmarks-import')?.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.readAsText(file, 'UTF-8');
+                    reader.onload = async (rev) => {
+                        try {
+                            const content = JSON.parse(rev.target.result);
+                            if (content.bookmarks && content.lists) {
+                                const currentData = await Storage.getData();
+                                const merged = await Storage.mergeData(currentData, content);
+                                await Storage.saveToGist(merged);
+                                Storage.invalidateCache();
+                                renderBookmarksPage();
+                                updateBookmarkButton();
+                                alert('Bookmarks imported successfully!');
+                            } else {
+                                alert('Invalid file format. Expected bookmarks and lists.');
+                            }
+                        } catch (err) {
+                            alert('Invalid JSON file.');
+                        }
+                    };
                 };
-            };
-            input.click();
-        });
+                input.click();
+            });
+        } finally {
+            isRendering = false;
+        }
     }
 
     // ============================================================================
@@ -2192,6 +2594,10 @@
         }
     });
 
+    window.addEventListener('ghBookmarkSyncStatusChanged', () => {
+        renderSyncStatus();
+    });
+
     window.addEventListener('popstate', () => {
         if (Repo.isBookmarksPage()) {
             renderBookmarksPage();
@@ -2200,6 +2606,12 @@
 
     async function init() {
         injectStyles();
+
+        if (!Storage.getSyncToken() || !Storage.getGistId()) {
+            Storage.setSyncStatus('unsynced');
+        } else if (Storage.lastSyncStatus === 'unknown') {
+            Storage.setSyncStatus('unknown');
+        }
 
         if (Repo.isBookmarksPage()) {
             setTimeout(renderBookmarksPage, 100);
@@ -2215,15 +2627,21 @@
     }
 
     function watchForProfileMenu() {
-        const observer = new MutationObserver(() => {
-            addBookmarksToProfileMenu();
-        });
+        let rafScheduled = false;
+        const schedule = () => {
+            if (rafScheduled) return;
+            rafScheduled = true;
+            requestAnimationFrame(() => {
+                rafScheduled = false;
+                addBookmarksToProfileMenu();
+            });
+        };
+
+        const observer = new MutationObserver(schedule);
 
         observer.observe(document.body, {
             childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['open']
+            subtree: true
         });
     }
 
@@ -2231,6 +2649,7 @@
         const token = Storage.getSyncToken();
         if (!token) {
             console.log('GitHub Bookmarks: No sync token configured. Configure via the bookmarks page.');
+            Storage.setSyncStatus('unsynced');
         } else {
             await Storage.initialize();
         }
