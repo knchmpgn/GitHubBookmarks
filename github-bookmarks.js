@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.7.3
+// @version      6.7.4
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -1412,14 +1412,14 @@
             }
 
             #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover {
-                background: var(--bgColor-danger-muted, var(--color-danger-subtle));
-                color: var(--danger-fgColor, var(--color-danger-fg));
-                border-color: var(--danger-borderColor, var(--color-danger-emphasis));
+                background: var(--bgColor-danger-muted, #ffebe9);
+                color: var(--fgColor-danger, #d1242f);
+                border-color: var(--borderColor-danger-emphasis, #cf222e);
             }
 
             #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover svg,
             #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover svg path {
-                fill: var(--danger-fgColor, var(--color-danger-fg)) !important;
+                fill: var(--fgColor-danger, #d1242f) !important;
             }
 
             #bookmarks-page-container .bookmark-category.dragging {
@@ -1555,25 +1555,25 @@
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover {
-                background: var(--bgColor-danger-muted, var(--color-danger-subtle));
-                color: var(--danger-fgColor, var(--color-danger-fg));
-                border-color: var(--danger-borderColor, var(--color-danger-emphasis));
+                background: var(--bgColor-danger-muted, #ffebe9);
+                color: var(--fgColor-danger, #d1242f);
+                border-color: var(--borderColor-danger-emphasis, #cf222e);
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover svg,
             #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover svg path {
-                fill: var(--danger-fgColor, var(--color-danger-fg)) !important;
+                fill: var(--fgColor-danger, #d1242f) !important;
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover {
-                background: var(--bgColor-accent-muted, var(--color-accent-subtle));
-                color: var(--fgColor-accent, var(--color-accent-fg));
-                border-color: var(--borderColor-accent-emphasis, var(--color-accent-emphasis));
+                background: var(--bgColor-accent-muted, #ddf4ff);
+                color: var(--fgColor-accent, #0969da);
+                border-color: var(--borderColor-accent-emphasis, #0969da);
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover svg,
             #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover svg path {
-                fill: var(--fgColor-accent, var(--color-accent-fg)) !important;
+                fill: var(--fgColor-accent, #0969da) !important;
             }
 
             /* Move-to-list dropdown */
