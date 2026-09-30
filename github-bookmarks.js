@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.6.2
+// @version      6.7.3
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -48,16 +48,16 @@
         triangleDown: `<svg class="octicon octicon-triangle-down" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"></path></svg>`,
         close: `<svg class="octicon octicon-x" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path></svg>`,
         plus: `<svg class="octicon octicon-plus" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg>`,
-        trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
-        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`,
+        trash: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path></svg>`,
+        tag: `<svg class="octicon octicon-tag" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Z"></path></svg>`,
         search: `<svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" fill="currentColor" class="octicon octicon-search"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg>`,
         sync: `<svg class="octicon octicon-sync" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z"></path></svg>`,
         download: `<svg class="octicon octicon-download" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"></path><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"></path></svg>`,
         upload: `<svg class="octicon octicon-upload" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M3 9a.75.75 0 0 1 .75.75v2.5c0 .138.112.25.25.25h8a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 12 14H4a1.75 1.75 0 0 1-1.75-1.75v-2.5A.75.75 0 0 1 3 9Z"></path><path d="M8.75 3.561V10a.75.75 0 0 1-1.5 0V3.56L5.28 5.53a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25a.749.749 0 1 1-1.06 1.06L8.75 3.56Z"></path></svg>`,
-        sort: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M0 4.75A.75.75 0 0 1 .75 4h14.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 4.75Zm0 3.5A.75.75 0 0 1 .75 7.5h10.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 8.25Zm0 3.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75Z"></path></svg>`,
-        chevronDown: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"></path></svg>`,
-        grabber: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM6 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
-        moveTo: `<svg class="octicon octicon-arrow-right" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8H3.75a.75.75 0 0 1 0-1.5h6.19L8.22 4.03a.75.75 0 0 1 0-1.06Z"></path></svg>`
+        sort: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M0 4.75A.75.75 0 0 1 .75 4h14.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 4.75Zm0 3.5A.75.75 0 0 1 .75 7.5h10.5a.75.75 0 0 1 0 1.5H.75A.75.75 0 0 1 0 8.25Zm0 3.5a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75Z"></path></svg>`,
+        chevronDown: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M12.78 6.22a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 7.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L8 9.94l3.72-3.72a.75.75 0 0 1 1.06 0Z"></path></svg>`,
+        grabber: `<svg class="octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M10 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM6 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm0-4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>`,
+        moveTo: `<svg class="octicon octicon-arrow-right" height="16" viewBox="0 0 16 16" version="1.1" width="16" aria-hidden="true" fill="currentColor"><path d="M8.22 2.97a.75.75 0 0 1 1.06 0l3.25 3.25a.75.75 0 0 1 0 1.06l-3.25 3.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8H3.75a.75.75 0 0 1 0-1.5h6.19L8.22 4.03a.75.75 0 0 1 0-1.06Z"></path></svg>`
     };
 
     let syncInProgress = false;
@@ -503,6 +503,8 @@
         async saveListOrder(order) {
             const data = await this.getData();
             data.listOrder = order;
+            this.cache = data;
+            this.cacheTimestamp = Date.now();
             await this.saveToGist(data);
         },
 
@@ -655,6 +657,15 @@
                 if (!data.listOrder.includes(listName)) {
                     data.listOrder.push(listName);
                 }
+                if (!data.bookmarks[listName]) {
+                    data.bookmarks[listName] = [];
+                }
+                if (!data.manualOrder) data.manualOrder = {};
+                if (!Array.isArray(data.manualOrder[listName])) {
+                    data.manualOrder[listName] = [];
+                }
+                this.cache = data;
+                this.cacheTimestamp = Date.now();
                 await this.saveToGist(data);
                 return true;
             }
@@ -682,6 +693,8 @@
                 delete data.manualOrder[oldName];
             }
             data.listOrder = data.listOrder.map(l => l === oldName ? newName : l);
+            this.cache = data;
+            this.cacheTimestamp = Date.now();
             await this.saveToGist(data);
             return true;
         },
@@ -701,6 +714,8 @@
                 delete data.manualOrder[listName];
             }
             data.listOrder = data.listOrder.filter(l => l !== listName);
+            this.cache = data;
+            this.cacheTimestamp = Date.now();
             await this.saveToGist(data);
             return true;
         },
@@ -785,9 +800,6 @@
     // SORTING UTILITIES
     // ============================================================================
 
-    // Extracts the repository name from a "owner/name" string.
-    // Used for sorting so that repos are ordered by their name, not
-    // their owner. The full "owner/name" is still what gets displayed.
     function getRepoName(fullName) {
         if (!fullName) return '';
         const slash = fullName.indexOf('/');
@@ -1045,30 +1057,60 @@
                 white-space: nowrap;
             }
 
-            .SelectMenu-item--add .SelectMenu-item-text {
-                flex: 0;
-                overflow: visible;
-                white-space: nowrap;
-                position: relative;
-                top: -1px;
-            }
-
+            /* Footer containing the "Create list" button */
             .SelectMenu-footer {
                 display: flex;
                 flex: none;
-                padding: 0px 8px 8px 8px;
-                border-top: 0px;
-                margin-top: 0px;
+                padding: 8px;
+                border-top: 0.67px solid var(--borderColor-muted, var(--color-border-muted));
+                margin-top: 0;
             }
 
+            /* "Create list" button — matches GitHub's SelectPanel button. */
             .SelectMenu-item--add {
-                margin: 0 !important;
-                padding: 6px 6px !important;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
                 width: 100% !important;
+                min-width: max-content;
+                height: 32px;
+                margin: 0 !important;
+                padding: 0 12px !important;
+                border: 0.67px solid var(--button-default-borderColor-rest, var(--color-btn-border));
+                border-radius: 6px;
+                background-color: var(--button-default-bgColor-rest, var(--color-btn-bg));
+                box-shadow: rgba(31, 35, 40, 0.04) 0px 1px 0px 0px;
+                color: var(--button-default-fgColor-rest, var(--color-btn-text));
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 21px;
+                cursor: pointer;
+                transition:
+                    color 0.08s cubic-bezier(0.65, 0, 0.35, 1),
+                    fill 0.08s cubic-bezier(0.65, 0, 0.35, 1),
+                    background-color 0.08s cubic-bezier(0.65, 0, 0.35, 1),
+                    border-color 0.08s cubic-bezier(0.65, 0, 0.35, 1);
             }
 
             .SelectMenu-item--add:hover {
-                background-color: var(--bgColor-neutral-muted, var(--color-neutral-muted)) !important;
+                background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg)) !important;
+                border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
+                color: var(--button-default-fgColor-rest, var(--color-btn-text)) !important;
+            }
+
+            .SelectMenu-item--add:active {
+                background-color: var(--button-default-bgColor-active, var(--color-btn-active-bg));
+                border-color: var(--button-default-borderColor-active, var(--color-btn-active-border));
+            }
+
+            .SelectMenu-item--add .SelectMenu-item-text {
+                flex: 1 1 auto;
+                text-align: center;
+                overflow: visible;
+                white-space: nowrap;
+                position: static;
+                top: auto;
             }
 
             .SelectMenu-plus-icon {
@@ -1297,6 +1339,7 @@
                 align-items: center;
                 gap: 8px;
                 flex: 1;
+                min-width: 0;
             }
 
             #bookmarks-page-container .bookmark-category-header .category-count {
@@ -1321,6 +1364,68 @@
                 transform: rotate(-90deg);
             }
 
+            /* List drag handle inside the category header */
+            #bookmarks-page-container .bookmark-category-header .list-drag-handle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                cursor: grab;
+                padding: 2px 4px;
+                margin-right: 4px;
+                margin-left: -6px;
+                flex-shrink: 0;
+                border-radius: 4px;
+                transition: color 0.1s ease, background 0.1s ease;
+            }
+
+            #bookmarks-page-container .bookmark-category-header .list-drag-handle:hover {
+                color: var(--fgColor-default, var(--color-fg-default));
+                background: var(--bgColor-neutral-muted, var(--color-neutral-muted));
+            }
+
+            #bookmarks-page-container .bookmark-category-header .list-drag-handle:active {
+                cursor: grabbing;
+            }
+
+            /* List actions (delete) */
+            #bookmarks-page-container .bookmark-category-header .list-actions {
+                display: flex;
+                gap: 4px;
+                flex-shrink: 0;
+                margin-left: 8px;
+            }
+
+            #bookmarks-page-container .bookmark-category-header .list-delete-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4px;
+                width: 28px;
+                height: 28px;
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 6px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                cursor: pointer;
+                transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
+            }
+
+            #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover {
+                background: var(--bgColor-danger-muted, var(--color-danger-subtle));
+                color: var(--danger-fgColor, var(--color-danger-fg));
+                border-color: var(--danger-borderColor, var(--color-danger-emphasis));
+            }
+
+            #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover svg,
+            #bookmarks-page-container .bookmark-category-header .list-delete-btn:hover svg path {
+                fill: var(--danger-fgColor, var(--color-danger-fg)) !important;
+            }
+
+            #bookmarks-page-container .bookmark-category.dragging {
+                opacity: 0.5;
+            }
+
             #bookmarks-page-container .bookmark-category-body {
                 border: 1px solid var(--borderColor-default, var(--color-border-default));
                 border-top: none;
@@ -1331,6 +1436,14 @@
 
             #bookmarks-page-container .bookmark-category-body.collapsed {
                 display: none;
+            }
+
+            #bookmarks-page-container .bookmark-category-body .empty-list-message {
+                padding: 16px;
+                text-align: center;
+                font-size: 13px;
+                color: var(--fgColor-muted, var(--color-fg-muted));
+                background: var(--bgColor-default, var(--color-canvas-default));
             }
 
             #bookmarks-page-container .bookmark-item {
@@ -1442,13 +1555,25 @@
             }
 
             #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover {
+                background: var(--bgColor-danger-muted, var(--color-danger-subtle));
                 color: var(--danger-fgColor, var(--color-danger-fg));
                 border-color: var(--danger-borderColor, var(--color-danger-emphasis));
             }
 
+            #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover svg,
+            #bookmarks-page-container .bookmark-item .bookmark-actions .remove-btn:hover svg path {
+                fill: var(--danger-fgColor, var(--color-danger-fg)) !important;
+            }
+
             #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover {
+                background: var(--bgColor-accent-muted, var(--color-accent-subtle));
                 color: var(--fgColor-accent, var(--color-accent-fg));
                 border-color: var(--borderColor-accent-emphasis, var(--color-accent-emphasis));
+            }
+
+            #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover svg,
+            #bookmarks-page-container .bookmark-item .bookmark-actions .move-btn:hover svg path {
+                fill: var(--fgColor-accent, var(--color-accent-fg)) !important;
             }
 
             /* Move-to-list dropdown */
@@ -2044,9 +2169,14 @@
         const sortPref = Storage.getSortPreference();
         const isManualSort = sortPref === 'manual';
 
-        const listsWithBookmarks = allLists.filter(list => bookmarks[list] && bookmarks[list].length > 0);
+        const listsToRender = allLists.filter(list => {
+            if (list === DEFAULT_LIST) {
+                return bookmarks[list] && bookmarks[list].length > 0;
+            }
+            return true;
+        });
 
-        if (listsWithBookmarks.length === 0) {
+        if (listsToRender.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">${ICONS.bookmarkHollow}</div>
@@ -2062,48 +2192,64 @@
 
         let html = '';
 
-        for (const listName of listsWithBookmarks) {
+        for (const listName of listsToRender) {
             const items = bookmarks[listName] || [];
-            if (items.length === 0) continue;
-
             const sortedItems = Sorter.sortBookmarks(items, sortPref, manualOrderMap[listName]);
 
             const isDefault = listName === DEFAULT_LIST;
             const listLabel = isDefault ? 'Unassigned' : listName;
 
+            const listDragHandle = isDefault
+                ? ''
+                : `<span class="list-drag-handle" title="Drag to reorder list">${ICONS.grabber}</span>`;
+
+            const deleteButton = isDefault
+                ? ''
+                : `<div class="list-actions">
+                       <button type="button" class="list-delete-btn" data-list="${listName}" title="Delete this list">${ICONS.trash}</button>
+                   </div>`;
+
             html += `
-                <div class="bookmark-category" data-list="${listName}">
+                <div class="bookmark-category" data-list="${listName}"${isDefault ? ' data-locked="true"' : ''}>
                     <div class="bookmark-category-header" data-category="${listName}">
                         <h3>
+                            ${listDragHandle}
                             <span class="collapse-icon">${ICONS.chevronDown}</span>
                             ${ICONS.tag}
                             ${listLabel}
                             <span class="category-count">${items.length}</span>
                         </h3>
+                        ${deleteButton}
                     </div>
                     <div class="bookmark-category-body" data-list="${listName}">
             `;
 
-            for (const item of sortedItems) {
-                const dragTitle = isManualSort
-                    ? 'Drag to reorder'
-                    : 'Switch to Manual sort to drag and reorder';
-                const dragClass = isManualSort ? 'drag-handle' : 'drag-handle drag-handle--disabled';
-
+            if (sortedItems.length === 0) {
                 html += `
-                    <div class="bookmark-item" data-repo="${item.repo}" data-list="${listName}">
-                        <span class="${dragClass}" title="${dragTitle}">${ICONS.grabber}</span>
-                        <div class="bookmark-info">
-                            <a href="${item.repoUrl}" target="_blank" rel="noopener noreferrer">${item.repo}</a>
-                        </div>
-                        <div class="bookmark-actions">
-                            <button type="button" class="move-btn" data-repo="${item.repo}" data-list="${listName}" title="Move to another list">
-                                ${ICONS.moveTo}
-                            </button>
-                            <button type="button" class="remove-btn" data-repo="${item.repo}" data-list="${listName}" title="Remove from this list">${ICONS.trash}</button>
-                        </div>
-                    </div>
+                    <div class="empty-list-message">No bookmarks in this list yet.</div>
                 `;
+            } else {
+                for (const item of sortedItems) {
+                    const dragTitle = isManualSort
+                        ? 'Drag to reorder'
+                        : 'Switch to Manual sort to drag and reorder';
+                    const dragClass = isManualSort ? 'drag-handle' : 'drag-handle drag-handle--disabled';
+
+                    html += `
+                        <div class="bookmark-item" data-repo="${item.repo}" data-list="${listName}">
+                            <span class="${dragClass}" title="${dragTitle}">${ICONS.grabber}</span>
+                            <div class="bookmark-info">
+                                <a href="${item.repoUrl}" target="_blank" rel="noopener noreferrer">${item.repo}</a>
+                            </div>
+                            <div class="bookmark-actions">
+                                <button type="button" class="move-btn" data-repo="${item.repo}" data-list="${listName}" title="Move to another list">
+                                    ${ICONS.moveTo}
+                                </button>
+                                <button type="button" class="remove-btn" data-repo="${item.repo}" data-list="${listName}" title="Remove from this list">${ICONS.trash}</button>
+                            </div>
+                        </div>
+                    `;
+                }
             }
 
             html += `
@@ -2125,6 +2271,7 @@
         }
 
         initDragAndDrop();
+        initListDragAndDrop();
     }
 
     const _sortableInstances = new WeakMap();
@@ -2186,9 +2333,48 @@
         });
     }
 
+    let _listSortableInstance = null;
+
+    function initListDragAndDrop() {
+        const container = document.getElementById('bookmarks-list-container');
+        if (!container || typeof Sortable === 'undefined') return;
+
+        if (_listSortableInstance) {
+            try { _listSortableInstance.destroy(); } catch (e) { /* ignore */ }
+            _listSortableInstance = null;
+        }
+
+        _listSortableInstance = Sortable.create(container, {
+            animation: 150,
+            handle: '.list-drag-handle',
+            draggable: '.bookmark-category',
+            filter: '[data-locked="true"]',
+            preventOnFilter: true,
+            ghostClass: 'dragging',
+            dragClass: 'dragging',
+            onEnd: async () => {
+                const newOrder = [];
+                container.querySelectorAll('.bookmark-category').forEach(el => {
+                    const name = el.dataset.list;
+                    if (name && name !== DEFAULT_LIST) {
+                        newOrder.push(name);
+                    }
+                });
+
+                await Storage.saveListOrder(newOrder);
+                Storage.invalidateCache();
+                Storage.dispatchUpdate();
+                renderBookmarksPage();
+            }
+        });
+    }
+
     function attachListEventListeners() {
         document.querySelectorAll('.bookmark-category-header').forEach(header => {
-            header.addEventListener('click', () => {
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('.list-drag-handle')) return;
+                if (e.target.closest('.list-delete-btn')) return;
+
                 const body = header.parentElement.querySelector('.bookmark-category-body');
                 const icon = header.querySelector('.collapse-icon');
                 if (body) {
@@ -2196,6 +2382,26 @@
                     if (icon) {
                         icon.classList.toggle('collapsed');
                     }
+                }
+            });
+        });
+
+        document.querySelectorAll('.list-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const list = btn.getAttribute('data-list');
+
+                const bookmarks = await Storage.getBookmarks();
+                const count = bookmarks[list]?.length || 0;
+                const msg = count > 0
+                    ? `Delete list "${list}" and its ${count} bookmark${count !== 1 ? 's' : ''}?`
+                    : `Delete list "${list}"?`;
+
+                if (confirm(msg)) {
+                    await Storage.deleteList(list);
+                    Storage.dispatchUpdate();
+                    renderBookmarksPage();
+                    updateBookmarkButton();
                 }
             });
         });
@@ -2319,6 +2525,7 @@
                         <div class="page-header-actions">
                             <div id="bookmarks-sync-status" class="bookmarks-sync-status"></div>
                             <button type="button" id="bookmarks-configure-sync" class="btn">${ICONS.sync} Sync</button>
+                            <button type="button" id="bookmarks-create-list-btn" class="btn">${ICONS.plus} Create list</button>
                             <button type="button" id="bookmarks-export" class="btn">${ICONS.download} Export</button>
                             <button type="button" id="bookmarks-import" class="btn">${ICONS.upload} Import</button>
                         </div>
@@ -2344,6 +2551,16 @@
 
             await renderBookmarksList();
             renderSyncStatus();
+
+            document.getElementById('bookmarks-create-list-btn')?.addEventListener('click', async () => {
+                const newList = prompt('Enter new list name:');
+                if (newList?.trim()) {
+                    await Storage.addList(newList.trim());
+                    Storage.dispatchUpdate();
+                    renderBookmarksPage();
+                    updateBookmarkButton();
+                }
+            });
 
             document.getElementById('bookmarks-configure-sync')?.addEventListener('click', async () => {
                 const currentToken = Storage.getSyncToken();
@@ -2609,10 +2826,6 @@
         setTimeout(addBookmarksTabToProfilePage, 500);
     }
 
-    // Observe childList for menu mounting, and the `open` attribute so we
-    // re-inject the item each time GitHub's popover opens. The callback is
-    // throttled via requestAnimationFrame so our own DOM churn doesn't flood
-    // the handler.
     function watchForProfileMenu() {
         let rafScheduled = false;
         const schedule = () => {
