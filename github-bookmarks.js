@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.7.5
+// @version      6.7.7
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -989,27 +989,49 @@
                 padding: 8px 0;
             }
 
+            /* List item container — mirrors GitHub's .prc-ActionList-ActionListItem */
             .SelectMenu-item {
                 display: flex;
                 align-items: center;
-                width: 100%;
+                width: calc(100% - 16px);
                 overflow: hidden;
-                color: var(--fgColor-default, var(--color-fg-default));
+                color: var(--control-fgColor-rest, var(--color-fg-default));
                 text-align: left;
                 cursor: pointer;
                 background-color: transparent;
-                border: 0;
-                font-size: 14px;
-                width: calc(100% - 16px);
-                padding: 6px 8px;
+                border: none;
+                font-size: var(--text-body-size-medium, 0.875rem);
+                font-weight: var(--base-text-weight-normal, 400);
+                line-height: 20px;
+                padding-block: var(--control-medium-paddingBlock, 0.375rem);
+                padding-inline: var(--control-medium-paddingInline-condensed, 0.5rem);
                 margin: 0 8px;
                 gap: 8px;
-                border-radius: 6px;
+                border-radius: var(--borderRadius-medium, 0.375rem);
                 position: relative;
+                isolation: isolate;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
             }
 
-            .SelectMenu-item:hover {
-                background-color: transparent !important;
+            /* Blue pill indicator — mirrors GitHub's ActionList hover/selected ::before overlay */
+            .SelectMenu-item::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                border-radius: inherit;
+                background-color: transparent;
+                transition: background 33.333ms linear;
+                pointer-events: none;
+                z-index: -1;
+            }
+
+            .SelectMenu-item:hover::before {
+                background-color: var(--control-transparent-bgColor-hover, var(--color-action-list-item-default-hover-bg, rgba(208, 215, 222, 0.32)));
+            }
+
+            .SelectMenu-item:active::before {
+                background-color: var(--control-transparent-bgColor-active, var(--color-action-list-item-default-active-bg, rgba(208, 215, 222, 0.48)));
             }
 
             .SelectMenu-checkbox {
@@ -1066,11 +1088,11 @@
                 margin-top: 0;
             }
 
-            /* "Create list" button — matches GitHub's SelectPanel button. */
+            /* "Create list" button — matches GitHub's SelectPanel button (no icon). */
             .SelectMenu-item--add {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
+                justify-content: center;
                 gap: 8px;
                 width: 100% !important;
                 min-width: max-content;
@@ -1093,6 +1115,10 @@
                     border-color 0.08s cubic-bezier(0.65, 0, 0.35, 1);
             }
 
+            .SelectMenu-item--add::before {
+                content: none;
+            }
+
             .SelectMenu-item--add:hover {
                 background-color: var(--button-default-bgColor-hover, var(--color-btn-hover-bg)) !important;
                 border-color: var(--button-default-borderColor-hover, var(--color-btn-hover-border));
@@ -1105,29 +1131,12 @@
             }
 
             .SelectMenu-item--add .SelectMenu-item-text {
-                flex: 1 1 auto;
+                flex: 0 1 auto;
                 text-align: center;
                 overflow: visible;
                 white-space: nowrap;
                 position: static;
                 top: auto;
-            }
-
-            .SelectMenu-plus-icon {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-                color: var(--fgColor-muted, var(--color-fg-muted)) !important;
-                width: 16px;
-                height: 16px;
-            }
-
-            .SelectMenu-plus-icon svg {
-                width: 16px;
-                height: 16px;
-                display: block;
-                fill: currentColor;
             }
 
             /* Bookmarks Page Styles */
@@ -1830,7 +1839,6 @@
             addButton.type = 'button';
             addButton.className = 'SelectMenu-item SelectMenu-item--add';
             addButton.innerHTML = `
-                <span class="SelectMenu-plus-icon">${ICONS.plus}</span>
                 <span class="SelectMenu-item-text">Create list</span>
             `;
             addButton.addEventListener('click', async (e) => {
