@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub Bookmarks
 // @namespace    http://tampermonkey.net/
-// @version      6.7.4
+// @version      6.7.5
 // @description  Complete system to bookmark GitHub repositories with lists, Gist sync, drag-and-drop sorting, and dedicated page view.
 // @icon         https://github.githubassets.com/pinned-octocat.svg
 // @author       knchmpgn
@@ -1041,13 +1041,13 @@
             .SelectMenu-checkbox:checked::after {
                 content: '';
                 position: absolute;
-                top: 2px;
-                left: 5px;
+                top: 50%;
+                left: 50%;
                 width: 4px;
                 height: 8px;
                 border: solid white;
                 border-width: 0 2px 2px 0;
-                transform: rotate(45deg);
+                transform: translate(-50%, -60%) rotate(45deg);
             }
 
             .SelectMenu-item-text {
